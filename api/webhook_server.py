@@ -4,13 +4,18 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from urllib.parse import urljoin
+from datetime import datetime
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import httpx
 import openai
 
 from .config import APIConfig
+# Adicionar imports dos classificadores
+from agentes.emergency_classifier import EmergencyClassifierAgent
+from agentes.urgency_classifier import UrgencyClassifier
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +28,14 @@ APIConfig.validate()
 openai.api_key = APIConfig.OPENAI_API_KEY
 
 app = FastAPI(title="911 Server", version="1.0.0")
+
+# Classe para receber o relato
+class RelatoRequest(BaseModel):
+    relato: str
+
+# Instanciar classificadores
+emergency_classifier = EmergencyClassifierAgent()
+urgency_classifier = UrgencyClassifier()
 
 class EvolutionAPIClient:
     def __init__(self, base_url: str, api_key: str, instance: str):
@@ -182,6 +195,43 @@ async def process_message_event(data: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {e}")
 
+@app.post("/classify")
+async def classify_emergency_report(request: RelatoRequest):
+    """
+    Rota para classificar relatos de emergência
+    
+    Args:
+        request: Objeto com o relato da emergência
+        
+    Returns:
+        Dict: Resultado da classificação completa
+    """
+    try:
+        relato = request.relato
+        
+        # Passo 1: Classificar emergência (tipos de serviço)
+        emergency_result = emergency_classifier.classify_emergency(relato)
+        
+        # Passo 2: Classificar urgência usando o resultado anterior
+        urgency_result = urgency_classifier.classify_emergency(relato, emergency_result)
+        
+        # Passo 3: Retornar resultado completo em formato de dicionário
+        return {
+            "relato": relato,
+            "emergency_classification": emergency_result["tipos_emergencia"],
+            "nivel_urgencia": urgency_result.nivel_urgencia,
+            "status": "sucesso",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro na classificação: {e}")
+        raise HTTPException(status_code=500, detail={
+            "status": "erro",
+            "mensagem": str(e),
+            "relato": request.relato if hasattr(request, 'relato') else "Não disponível"
+        })
+
 @app.get("/health")
 async def health_check():
     """Endpoint de verificação de saúde"""
@@ -195,6 +245,7 @@ async def root():
         "version": "1.0.0",
         "endpoints": {
             "webhook": "/webhook",
+            "classify": "/classify",
             "health": "/health"
         }
     } 

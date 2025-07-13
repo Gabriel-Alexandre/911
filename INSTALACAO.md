@@ -4,6 +4,68 @@
 
 Este erro é comum em sistemas macOS com Python instalado via Homebrew. Aqui está como resolver:
 
+## Problema: Erro de instalação no Windows
+
+Se você está no Windows e enfrentou este erro:
+```
+ERROR: Could not install packages due to an OSError: [WinError 2] O sistema não pode encontrar o arquivo especificado
+```
+
+**Solução:** Use o ambiente virtual corretamente no Windows:
+
+### Windows PowerShell (Recomendado)
+
+```powershell
+# 1. Criar ambiente virtual
+python -m venv venv
+
+# 2. Ativar ambiente virtual (IMPORTANTE - comando específico Windows)
+.\venv\Scripts\Activate.ps1
+
+# 3. Verificar se está ativado (deve aparecer (venv) no prompt)
+# Exemplo: (venv) PS C:\Users\SeuUsuario\Videos\911>
+
+# 4. Instalar dependências
+pip install -r requirements.txt
+
+# 5. Executar o servidor
+python app.py
+
+# 6. Desativar ambiente virtual (quando terminar)
+deactivate
+```
+
+### Windows Command Prompt (cmd)
+
+```cmd
+# 1. Criar ambiente virtual
+python -m venv venv
+
+# 2. Ativar ambiente virtual
+venv\Scripts\activate
+
+# 3. Instalar dependências
+pip install -r requirements.txt
+
+# 4. Executar o servidor
+python app.py
+
+# 5. Desativar ambiente virtual
+deactivate
+```
+
+### Problema: "execution of scripts is disabled"
+
+Se aparecer erro de execução de scripts no PowerShell:
+
+```powershell
+# Execute este comando como Administrador
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Depois tente ativar novamente
+.\venv\Scripts\Activate.ps1
+```
+
 ## 🔧 Soluções
 
 ### Opção 1: Usar python3 -m pip (Recomendado)

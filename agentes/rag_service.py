@@ -12,14 +12,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.schema import Document
 
-# Importação robusta do Chroma
-try:
-    from langchain_chroma import Chroma
-except ImportError:
-    try:
-        from langchain_community.vectorstores import Chroma
-    except ImportError:
-        from langchain.vectorstores import Chroma
+# Import do FAISS para vector store
+from langchain_community.vectorstores import FAISS
 
 # Importação robusta que funciona tanto em execução direta quanto como módulo
 try:
@@ -64,8 +58,7 @@ class RAGService:
         """Inicializa o vector store."""
         try:
             self.vector_store = self.db_config.get_vector_store(self.embeddings)
-            self.db_config.create_collection_if_not_exists()
-            print("🔗 Vector store inicializado")
+            print("🔗 Vector store FAISS inicializado")
         except Exception as e:
             print(f"❌ Erro ao inicializar vector store: {e}")
             raise
@@ -107,7 +100,9 @@ class RAGService:
             # Adiciona ao vector store
             if self.vector_store:
                 self.vector_store.add_documents(doc_objects)
-                print(f"📝 {len(doc_objects)} chunks adicionados")
+                # Salva o índice FAISS após adicionar documentos
+                self.db_config.save_vector_store(self.vector_store)
+                print(f"📝 {len(doc_objects)} chunks adicionados e salvos")
                 return True
             else:
                 print("❌ Vector store não inicializado.")
@@ -612,13 +607,13 @@ class RAGService:
             if not self.vector_store:
                 return {"error": "Vector store não inicializado"}
             
-            # Busca alguns documentos para contar
-            sample_results = self.vector_store.similarity_search("", k=1000)  # Busca vazia para pegar tudo
+            # Obtém estatísticas do índice FAISS
+            index_stats = self.db_config.get_index_stats()
             
             return {
-                "total_documents": len(sample_results),
                 "vector_store_initialized": self.vector_store is not None,
-                "connection_info": self.db_config.get_connection_info()
+                "index_stats": index_stats,
+                "database_type": "FAISS"
             }
             
         except Exception as e:
@@ -632,7 +627,8 @@ class RAGService:
             bool: True se limpeza foi bem-sucedida
         """
         try:
-            if self.vector_store:
+            # Reseta o índice FAISS
+            if self.db_config.reset_index():
                 # Reinicializa o vector store
                 self._initialize_vector_store()
                 print("✅ Base de conhecimento limpa com sucesso!")

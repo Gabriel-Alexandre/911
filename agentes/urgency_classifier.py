@@ -76,17 +76,17 @@ class EmergencyOutputParser(BaseOutputParser[EmergencyClassification]):
     def get_format_instructions(self) -> str:
         """Retorna instruções de formatação para o LLM."""
         return """
-IMPORTANTE: Responda APENAS com um JSON válido no seguinte formato:
+        IMPORTANTE: Responda APENAS com um JSON válido no seguinte formato:
 
-{
-    "canal": ["bombeiros"] | ["saude"] | ["policia"] | ["defesa_civil"] | ["transito"] | ["bombeiros", "saude"] (lista de canais),
-    "nivel_urgencia": 1-5 (1=mínima, 2=baixa, 3=média, 4=alta, 5=crítica),
-    "justificativa": "Explicação detalhada da classificação",
-    "confidence_score": 0.0-1.0
-}
+        {
+            "canal": ["bombeiros"] | ["saude"] | ["policia"] | ["defesa_civil"] | ["transito"] | ["bombeiros", "saude"] (lista de canais),
+            "nivel_urgencia": 1-5 (1=mínima, 2=baixa, 3=média, 4=alta, 5=crítica),
+            "justificativa": "Explicação detalhada da classificação",
+            "confidence_score": 0.0-1.0
+        }
 
-NÃO inclua texto adicional fora do JSON.
-"""
+        NÃO inclua texto adicional fora do JSON.
+        """
 
 class UrgencyClassifier:
     """Agente principal para classificação de urgência de emergências."""
@@ -126,49 +126,49 @@ class UrgencyClassifier:
         """Cria o template de prompt para classificação."""
         
         system_message = SystemMessagePromptTemplate.from_template("""
-Você é um agente especialista em classificação de emergências para o sistema 911.
-Sua função é analisar relatos de ocorrências e determinar:
-1. Canal(is) apropriado(s) (bombeiros, saúde, polícia, defesa_civil, transito)
-2. Nível de urgência (1-5)
-3. Justificativa detalhada da classificação
+        Você é um agente especialista em classificação de emergências para o sistema 911.
+        Sua função é analisar relatos de ocorrências e determinar:
+        1. Canal(is) apropriado(s) (bombeiros, saúde, polícia, defesa_civil, transito)
+        2. Nível de urgência (1-5)
+        3. Justificativa detalhada da classificação
 
-IMPORTANTE: Se houver uma CLASSIFICAÇÃO PRÉVIA no contexto, use-a como referência adicional para:
-- Confirmar ou refinar a identificação dos canais
-- Ajustar o nível de urgência com base na análise prévia
-- Incorporar insights da justificativa prévia em sua análise
+        IMPORTANTE: Se houver uma CLASSIFICAÇÃO PRÉVIA no contexto, use-a como referência adicional para:
+        - Confirmar ou refinar a identificação dos canais
+        - Ajustar o nível de urgência com base na análise prévia
+        - Incorporar insights da justificativa prévia em sua análise
 
-DIRETRIZES DE CLASSIFICAÇÃO:
+        DIRETRIZES DE CLASSIFICAÇÃO:
 
-CANAIS (pode ser um ou múltiplos):
-- bombeiros: incêndios, explosões, vazamentos de gás, resgates, acidentes com materiais perigosos
-- saude: emergências médicas, ferimentos, doenças, overdoses, problemas respiratórios
-- policia: crimes, violência, distúrbios, acidentes com aspectos criminais
-- defesa_civil: desastres naturais, alagamentos, deslizamentos
-- transito: acidentes de trânsito simples, congestionamentos, sinalização
+        CANAIS (pode ser um ou múltiplos):
+        - bombeiros: incêndios, explosões, vazamentos de gás, resgates, acidentes com materiais perigosos
+        - saude: emergências médicas, ferimentos, doenças, overdoses, problemas respiratórios
+        - policia: crimes, violência, distúrbios, acidentes com aspectos criminais
+        - defesa_civil: desastres naturais, alagamentos, deslizamentos
+        - transito: acidentes de trânsito simples, congestionamentos, sinalização
 
-MÚLTIPLOS CANAIS podem ser necessários quando:
-- Acidente com feridos (transito + saude)
-- Incêndio criminoso (bombeiros + policia)
-- Acidente com materiais perigosos (bombeiros + saude + defesa_civil)
+        MÚLTIPLOS CANAIS podem ser necessários quando:
+        - Acidente com feridos (transito + saude)
+        - Incêndio criminoso (bombeiros + policia)
+        - Acidente com materiais perigosos (bombeiros + saude + defesa_civil)
 
-NÍVEIS DE URGÊNCIA:
-- 5 (CRÍTICA): Risco iminente de morte, grandes incêndios, crimes violentos em andamento
-- 4 (ALTA): Ferimentos graves, incêndios menores, crimes sem violência iminente
-- 3 (MÉDIA): Ferimentos moderados, situações de risco controlado
-- 2 (BAIXA): Problemas menores, orientações
-- 1 (MÍNIMA): Informações, prevenção
+        NÍVEIS DE URGÊNCIA:
+        - 5 (CRÍTICA): Risco iminente de morte, grandes incêndios, crimes violentos em andamento
+        - 4 (ALTA): Ferimentos graves, incêndios menores, crimes sem violência iminente
+        - 3 (MÉDIA): Ferimentos moderados, situações de risco controlado
+        - 2 (BAIXA): Problemas menores, orientações
+        - 1 (MÍNIMA): Informações, prevenção
 
-{context}
+        {context}
 
-{format_instructions}
-""")
+        {format_instructions}
+        """)
         
         human_message = HumanMessagePromptTemplate.from_template("""
-RELATO DA OCORRÊNCIA:
-{ocorrencia}
+        RELATO DA OCORRÊNCIA:
+        {ocorrencia}
 
-Analise este relato e forneça a classificação estruturada conforme as diretrizes.
-""")
+        Analise este relato e forneça a classificação estruturada conforme as diretrizes.
+        """)
         
         self.prompt_template = ChatPromptTemplate.from_messages([
             system_message,
@@ -219,14 +219,14 @@ Analise este relato e forneça a classificação estruturada conforme as diretri
                     canais_sugeridos.append(canal)
                 
                 classificacao_previa = f"""
-CLASSIFICAÇÃO PRÉVIA DO EMERGENCY CLASSIFIER:
-- Tipos identificados: {', '.join(tipos_emergencia).upper()}
-- Canais sugeridos: {', '.join(canais_sugeridos)}
-- Justificativa: {justificativa_emergencia}
-- Confiança: {confianca_emergencia:.1%}
+                CLASSIFICAÇÃO PRÉVIA DO EMERGENCY CLASSIFIER:
+                - Tipos identificados: {', '.join(tipos_emergencia).upper()}
+                - Canais sugeridos: {', '.join(canais_sugeridos)}
+                - Justificativa: {justificativa_emergencia}
+                - Confiança: {confianca_emergencia:.1%}
 
-Use esta informação como referência adicional para sua análise.
-"""
+                Use esta informação como referência adicional para sua análise.
+                """
                 enhanced_context += f"\n\n{classificacao_previa}"
             
             # Prepara prompt
@@ -295,15 +295,15 @@ Use esta informação como referência adicional para sua análise.
         canais_str = ", ".join(canal.upper() for canal in classification.canal)
         
         summary = f"""
-🚨 CLASSIFICAÇÃO DE EMERGÊNCIA 🚨
+        🚨 CLASSIFICAÇÃO DE EMERGÊNCIA 🚨
 
-📍 CANAL(IS): {canais_str}
-🔥 URGÊNCIA: {urgency_labels[classification.nivel_urgencia]} (Nível {classification.nivel_urgencia})
-🎯 CONFIANÇA: {classification.confidence_score:.1%}
+        📍 CANAL(IS): {canais_str}
+        🔥 URGÊNCIA: {urgency_labels[classification.nivel_urgencia]} (Nível {classification.nivel_urgencia})
+        🎯 CONFIANÇA: {classification.confidence_score:.1%}
 
-📋 JUSTIFICATIVA:
-{classification.justificativa}
-"""
+        📋 JUSTIFICATIVA:
+        {classification.justificativa}
+        """
         return summary.strip()
     
     def add_knowledge(self, documents: list, categories: list = None) -> bool:

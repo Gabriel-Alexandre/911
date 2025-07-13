@@ -1,6 +1,7 @@
 .venv/
 chroma_db/
 database/
+agentes/faiss_db/
 .env
 venv/
 
