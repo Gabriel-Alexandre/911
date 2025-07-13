@@ -47,32 +47,6 @@ class EvolutionAPIClient:
             "apikey": api_key
         }
     
-    async def setup_webhook(self, webhook_url: str) -> bool:
-        """Configura o webhook na Evolution API"""
-        try:
-            async with httpx.AsyncClient() as client:
-                url = urljoin(self.base_url, f"/webhook/set/{self.instance}")
-                payload = {
-                    "url": webhook_url,
-                    "enabled": True,
-                    "webhook_by_events": True,
-                    "webhook_base64": False,
-                    "events": ["MESSAGES_UPSERT"]
-                }
-                
-                response = await client.post(url, json=payload, headers=self.headers)
-                
-                if response.status_code == 200:
-                    logger.info(f"Webhook configurado com sucesso: {webhook_url}")
-                    return True
-                else:
-                    logger.error(f"Erro ao configurar webhook: {response.status_code} - {response.text}")
-                    return False
-                    
-        except Exception as e:
-            logger.error(f"Erro ao configurar webhook: {e}")
-            return False
-    
     async def get_base64_from_media_message(self, message_id: str) -> Optional[str]:
         """Obtém o base64 de uma mensagem de mídia"""
         try:
@@ -118,21 +92,6 @@ async def transcribe_audio(base64_audio: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Erro na transcrição: {e}")
         return None
-
-@app.on_event("startup")
-async def startup_event():
-    """Configura o webhook na Evolution API na inicialização"""
-    logger.info("Iniciando servidor webhook...")
-    
-    # Aguardar um pouco para garantir que a Evolution API esteja pronta
-    await asyncio.sleep(2)
-    
-    # Configurar webhook
-    success = await evolution_client.setup_webhook(APIConfig.WEBHOOK_URL)
-    if success:
-        logger.info("Servidor webhook iniciado com sucesso!")
-    else:
-        logger.error("Falha ao configurar webhook!")
 
 @app.post("/webhook")
 async def webhook_handler(request: Request):

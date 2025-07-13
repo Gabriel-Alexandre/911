@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ChromaDB Vector Database
   chromadb:
@@ -9,62 +7,81 @@ services:
       - "8000:8000"
     volumes:
       - chroma_data:/chroma/chroma
-    environment:
-      - CHROMA_HOST=0.0.0.0
-      - CHROMA_PORT=8000
-      - PERSIST_DIRECTORY=/chroma/chroma
     command: ["uvicorn", "chromadb.app:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
     networks:
       - 911-network
 
-  # Server
+  # Redis (cache)
+  redis:
+    image: redis:7-alpine
+    container_name: evolution_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - 911-network
+
+  # PostgreSQL (database)
+  postgres:
+    image: postgres:15-alpine
+    container_name: evolution_postgres
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: examplepassword
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - 911-network
+
+  # Evolution API
+  evolution-api:
+    container_name: evolution_api
+    image: atendai/evolution-api:v2.2.0
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - 911-network
+
   server:
     build: .
     container_name: server_911
     ports:
       - "8001:8000"
     environment:
-      # Evolution API
-      - EV_URL=${EV_URL:-http://localhost:8080}
+      - EV_URL=http://evolution_api:8080
       - EV_API_KEY=${EV_API_KEY}
       - EV_INSTANCE=${EV_INSTANCE}
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:8001/webhook}
-      
-      # OpenAI
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
-      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-1000}
-      
-      # ChromaDB
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
-      - CHROMA_PERSIST_DIRECTORY=./chroma_db
-      
-      # RAG
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - CHUNK_SIZE=${CHUNK_SIZE:-1000}
-      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
-      - MAX_CONTEXT_LENGTH=${MAX_CONTEXT_LENGTH:-2000}
-      
-      # Server
       - HOST=0.0.0.0
       - PORT=8000
-      - RELOAD=false
       - LOG_LEVEL=info
-    volumes:
-      - ./chroma_db:/app/chroma_db
     depends_on:
       - chromadb
+      - evolution-api
     restart: unless-stopped
     networks:
       - 911-network
 
+volumes:
+  chroma_data:
+  evolution_pgdata:
+  evolution_instances:
+
 networks:
   911-network:
     driver: bridge
-
-volumes:
-  chroma_data:
-    driver: local 

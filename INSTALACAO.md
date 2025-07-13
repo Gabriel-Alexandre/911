@@ -144,7 +144,6 @@ Edite o arquivo `.env` e configure:
 # Evolution API
 EV_API_KEY=sua_api_key_evolution_aqui
 EV_INSTANCE=sua_instancia_aqui
-WEBHOOK_URL=http://localhost:8000/webhook
 
 # OpenAI
 OPENAI_API_KEY=sua_chave_openai_aqui
