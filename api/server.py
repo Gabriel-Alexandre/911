@@ -1,5 +1,3 @@
-import asyncio
-import base64
 import json
 import logging
 from typing import Dict, Any, Optional, List
@@ -11,11 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import httpx
-import openai
+from openai import OpenAI
+import io
 
 from .config import APIConfig, db_client
 from .entities_service import emergency_service, ticket_service, backend_to_emergency
-# Adicionar imports dos classificadores
+from Crypto.Cipher import AES
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+import base64
 from agentes.emergency_classifier import EmergencyClassifierAgent
 from agentes.urgency_classifier import UrgencyClassifier
 
@@ -26,8 +28,8 @@ logger = logging.getLogger(__name__)
 # Validar configurações
 APIConfig.validate()
 
-# Configurar OpenAI
-openai.api_key = APIConfig.OPENAI_API_KEY
+# Configurar OpenAI (nova versão)
+openai_client = OpenAI(api_key=APIConfig.OPENAI_API_KEY)
 
 
 app = FastAPI(title="911 Server", version="1.0.0")
@@ -169,9 +171,20 @@ async def enviar_mensagem_whatsapp(phone_number: str, message: str) -> bool:
 async def download_audio_from_url(url: str) -> Optional[bytes]:
     """Faz download do áudio a partir da URL"""
     try:
+        # Headers para simular um navegador e acessar o WhatsApp
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1"
+        }
+        
         async with httpx.AsyncClient() as client:
-            response = await client.get(url)
+            response = await client.get(url, headers=headers, timeout=30.0)
             if response.status_code == 200:
+                logger.info(f"Download do áudio realizado com sucesso. Tamanho: {len(response.content)} bytes")
                 return response.content
             else:
                 logger.error(f"Erro ao fazer download do áudio: {response.status_code}")
@@ -179,47 +192,132 @@ async def download_audio_from_url(url: str) -> Optional[bytes]:
     except Exception as e:
         logger.error(f"Erro ao fazer download do áudio: {e}")
         return None
-
-async def transcribe_audio_from_url(audio_url: str) -> Optional[str]:
-    """Transcreve áudio a partir da URL usando OpenAI Whisper"""
+    
+def decrypt_enc(enc_bytes: bytes, media_key_b64: str, media_type: str = "audio") -> Optional[bytes]:
+    """
+    Descriptografa mídia do WhatsApp usando o algoritmo correto
+    """
     try:
-        # Fazer download do áudio
-        audio_data = await download_audio_from_url(audio_url)
+        logger.info(f"Iniciando descriptografia. Tamanho do arquivo: {len(enc_bytes)} bytes")
         
-        if not audio_data:
-            logger.error("Falha ao fazer download do áudio")
+        # Decodificar mediaKey de Base64
+        media_key = base64.b64decode(media_key_b64)
+        logger.info(f"MediaKey decodificada. Tamanho: {len(media_key)} bytes")
+        
+        # Gerar chave completa usando HKDF
+        info = f"WhatsApp {media_type.capitalize()} Keys".encode()
+        full_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=112,
+            salt=None,
+            info=info
+        ).derive(media_key)
+        
+        logger.info(f"Chave completa gerada. Tamanho: {len(full_key)} bytes")
+        
+        # Extrair IV e chave de criptografia
+        iv = full_key[:16]
+        enc_key = full_key[16:48]
+        
+        # Remover MAC (últimos 10 bytes)
+        if len(enc_bytes) <= 10:
+            logger.error("Arquivo muito pequeno para descriptografar")
             return None
+            
+        payload = enc_bytes[:-10]
+        logger.info(f"Payload para descriptografia: {len(payload)} bytes")
         
-        # Enviar para OpenAI Whisper
-        response = openai.Audio.transcribe(
-            model="whisper-1",
-            file=("audio.ogg", audio_data, "audio/ogg"),
-            language="pt"
-        )
+        # Descriptografar usando AES-CBC
+        cipher = AES.new(enc_key, AES.MODE_CBC, iv)
+        decrypted = cipher.decrypt(payload)
         
-        return response.text
+        # Remover padding
+        if len(decrypted) == 0:
+            logger.error("Dados descriptografados vazios")
+            return None
+            
+        pad = decrypted[-1]
+        if pad > len(decrypted):
+            logger.error(f"Padding inválido: {pad}")
+            return None
+            
+        result = decrypted[:-pad]
+        logger.info(f"Descriptografia concluída. Tamanho final: {len(result)} bytes")
+        
+        return result
         
     except Exception as e:
-        logger.error(f"Erro na transcrição: {e}")
+        logger.error(f"Erro na descriptografia: {e}")
         return None
 
-async def transcribe_audio(base64_audio: str) -> Optional[str]:
-    """Transcreve áudio usando OpenAI Whisper (mantido para compatibilidade)"""
+async def transcribe_audio_from_url(audio_url: str, media_key: str) -> Optional[str]:
+    """Transcreve áudio do WhatsApp com descriptografia"""
     try:
-        # Decodificar base64
-        audio_data = base64.b64decode(base64_audio)
+        # Fazer download do arquivo criptografado
+        enc = await download_audio_from_url(audio_url)
+        if not enc:
+            logger.error("Falha no download")
+            return None
+
+        # Descriptografar o arquivo
+        decrypted = decrypt_enc(enc, media_key, media_type="audio")
+        if not decrypted:
+            logger.error("Falha na descriptografia")
+            return None
+
+        # Verificar se o arquivo descriptografado é válido
+        if len(decrypted) < 100:
+            logger.error(f"Arquivo descriptografado muito pequeno: {len(decrypted)} bytes")
+            return None
+
+        # Verificar formato do arquivo
+        audio_headers = decrypted[:20]
+        logger.info(f"Headers do arquivo descriptografado: {audio_headers.hex()}")
         
-        # Enviar para OpenAI Whisper
-        response = openai.Audio.transcribe(
-            model="whisper-1",
-            file=("audio.ogg", audio_data, "audio/ogg"),
-            language="pt"
+        if decrypted.startswith(b"OggS"):
+            logger.info("✓ Arquivo OGG válido detectado!")
+            file_extension = "ogg"
+        elif audio_headers.startswith(b'ID3') or audio_headers.startswith(b'\xff\xfb') or audio_headers.startswith(b'\xff\xf3'):
+            logger.info("✓ Arquivo MP3 detectado!")
+            file_extension = "mp3"
+        elif audio_headers.startswith(b'RIFF'):
+            logger.info("✓ Arquivo WAV detectado!")
+            file_extension = "wav"
+        elif audio_headers.startswith(b'ftyp'):
+            logger.info("✓ Arquivo M4A/MP4 detectado!")
+            file_extension = "m4a"
+        else:
+            logger.warning(f"Formato de arquivo não reconhecido. Headers: {audio_headers[:8].hex()}")
+            # Tentar como OGG mesmo assim
+            file_extension = "ogg"
+
+        # Criar arquivo temporário em memória
+        audio_file = io.BytesIO(decrypted)
+        audio_file.name = f"voice.{file_extension}"
+        
+        logger.info(f"Enviando arquivo para transcrição. Tamanho: {len(decrypted)} bytes")
+        
+        # Fazer transcrição
+        res = openai_client.audio.transcriptions.create(
+            model="whisper-1", file=audio_file, language="pt"
         )
         
-        return response.text
+        logger.info(f"Transcrição realizada com sucesso: {res.text}")
+        return res.text
         
     except Exception as e:
         logger.error(f"Erro na transcrição: {e}")
+        
+        # Salvar arquivo para debug se disponível
+        try:
+            if 'decrypted' in locals() and 'file_extension' in locals():
+                debug_filename = f"debug_audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file_extension}"
+                with open(debug_filename, 'wb') as f:
+                    f.write(decrypted)
+                logger.info(f"Arquivo salvo para debug: {debug_filename}")
+        except Exception as save_error:
+            logger.error(f"Erro ao salvar arquivo para debug: {save_error}")
+        
         return None
 
 @app.on_event("startup")
@@ -244,23 +342,14 @@ async def parse_message(data: Dict[str, Any]) -> str:
         return message.get("conversation")          
             
     elif message_type == "audioMessage":
-        # Extrair URL do áudio diretamente do payload
-        audio_message = message.get("audioMessage", {})
-        audio_url = audio_message.get("url")
-        
-        logger.info(f"Processando mensagem de áudio")
-        logger.info(f"Dados do áudio: {json.dumps(audio_message, indent=2)}")
-        
-        if audio_url:
-            logger.info(f"URL do áudio encontrada: {audio_url}")
-            transcription = await transcribe_audio_from_url(audio_url)
+        audio = data["message"]["audioMessage"]
+        url = audio.get("url")
+        media_key = audio.get("mediaKey")
+
+        if url and media_key:
+            logger.info("Processando áudio criptografado via .enc")
             
-            if transcription:
-                logger.info(f"Transcrição realizada: {transcription}")
-                return transcription
-            else:
-                logger.error("Falha na transcrição do áudio")
-                return None
+            return await transcribe_audio_from_url(url, media_key)
         else:
             logger.error("URL do áudio não encontrada no payload")
             return None

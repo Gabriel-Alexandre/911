@@ -12,13 +12,13 @@ services:
     image: postgres:15-alpine
     container_name: evolution_postgres
     environment:
-      POSTGRES_USER: evolution
-      POSTGRES_PASSWORD: examplepassword
-      POSTGRES_DB: evolution
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - evolution_pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     restart: unless-stopped
     networks:
       - 911-network
@@ -44,16 +44,14 @@ services:
     container_name: server_911
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - EV_URL=http://evolution_api:8080
-      - EV_API_KEY=${EV_API_KEY}
-      - EV_INSTANCE=${EV_INSTANCE}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - HOST=0.0.0.0
-      - PORT=8000
-      - LOG_LEVEL=info
+      - DB_HOST=postgres
     depends_on:
       - evolution-api
+      - postgres
     restart: unless-stopped
     networks:
       - 911-network
