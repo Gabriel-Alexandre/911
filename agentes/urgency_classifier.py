@@ -13,6 +13,7 @@ from langchain.schema import BaseOutputParser
 from langchain.schema.output_parser import OutputParserException
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from typing import List
 
 # Importação robusta que funciona tanto em execução direta quanto como módulo
 try:
@@ -25,11 +26,9 @@ load_dotenv()
 @dataclass
 class EmergencyClassification:
     """Estrutura para resultado da classificação de emergência."""
-    canal: str
+    canal: List[str]
     nivel_urgencia: int
     justificativa: str
-    acoes_recomendadas: list
-    tempo_resposta_estimado: str
     confidence_score: float
 
 class EmergencyOutputParser(BaseOutputParser[EmergencyClassification]):
@@ -57,17 +56,15 @@ class EmergencyOutputParser(BaseOutputParser[EmergencyClassification]):
             data = json.loads(json_str)
             
             # Valida campos obrigatórios
-            required_fields = ["canal", "nivel_urgencia", "justificativa", "acoes_recomendadas", "tempo_resposta_estimado"]
+            required_fields = ["canal", "nivel_urgencia", "justificativa"]
             for field in required_fields:
                 if field not in data:
                     raise OutputParserException(f"Campo obrigatório '{field}' não encontrado")
             
             return EmergencyClassification(
-                canal=data["canal"],
+                canal=data["canal"] if isinstance(data["canal"], list) else [data["canal"]],
                 nivel_urgencia=int(data["nivel_urgencia"]),
                 justificativa=data["justificativa"],
-                acoes_recomendadas=data.get("acoes_recomendadas", []),
-                tempo_resposta_estimado=data["tempo_resposta_estimado"],
                 confidence_score=float(data.get("confidence_score", 0.8))
             )
             
@@ -82,11 +79,9 @@ class EmergencyOutputParser(BaseOutputParser[EmergencyClassification]):
 IMPORTANTE: Responda APENAS com um JSON válido no seguinte formato:
 
 {
-    "canal": "bombeiros" | "saude" | "policia" | "defesa_civil" | "transito",
+    "canal": ["bombeiros"] | ["saude"] | ["policia"] | ["defesa_civil"] | ["transito"] | ["bombeiros", "saude"] (lista de canais),
     "nivel_urgencia": 1-5 (1=mínima, 2=baixa, 3=média, 4=alta, 5=crítica),
     "justificativa": "Explicação detalhada da classificação",
-    "acoes_recomendadas": ["ação1", "ação2", "ação3"],
-    "tempo_resposta_estimado": "tempo estimado para atendimento",
     "confidence_score": 0.0-1.0
 }
 
@@ -96,7 +91,7 @@ NÃO inclua texto adicional fora do JSON.
 class UrgencyClassifier:
     """Agente principal para classificação de urgência de emergências."""
     
-    def __init__(self, openai_api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(self, openai_api_key: Optional[str] = None, model: str = "gpt-4.1-mini"):
         """
         Inicializa o classificador de urgência.
         
@@ -116,7 +111,7 @@ class UrgencyClassifier:
         )
         
         # Inicializa serviço RAG
-        self.rag_service = RAGService(openai_api_key)
+        self.rag_service = RAGService()
         
         # Inicializa parser de saída
         self.output_parser = EmergencyOutputParser()
@@ -133,19 +128,28 @@ class UrgencyClassifier:
         system_message = SystemMessagePromptTemplate.from_template("""
 Você é um agente especialista em classificação de emergências para o sistema 911.
 Sua função é analisar relatos de ocorrências e determinar:
-1. Canal apropriado (bombeiros, saúde, polícia, defesa_civil, transito)
+1. Canal(is) apropriado(s) (bombeiros, saúde, polícia, defesa_civil, transito)
 2. Nível de urgência (1-5)
-3. Ações recomendadas
-4. Tempo de resposta estimado
+3. Justificativa detalhada da classificação
+
+IMPORTANTE: Se houver uma CLASSIFICAÇÃO PRÉVIA no contexto, use-a como referência adicional para:
+- Confirmar ou refinar a identificação dos canais
+- Ajustar o nível de urgência com base na análise prévia
+- Incorporar insights da justificativa prévia em sua análise
 
 DIRETRIZES DE CLASSIFICAÇÃO:
 
-CANAIS:
+CANAIS (pode ser um ou múltiplos):
 - bombeiros: incêndios, explosões, vazamentos de gás, resgates, acidentes com materiais perigosos
-- saúde: emergências médicas, ferimentos, doenças, overdoses, problemas respiratórios
+- saude: emergências médicas, ferimentos, doenças, overdoses, problemas respiratórios
 - policia: crimes, violência, distúrbios, acidentes com aspectos criminais
 - defesa_civil: desastres naturais, alagamentos, deslizamentos
 - transito: acidentes de trânsito simples, congestionamentos, sinalização
+
+MÚLTIPLOS CANAIS podem ser necessários quando:
+- Acidente com feridos (transito + saude)
+- Incêndio criminoso (bombeiros + policia)
+- Acidente com materiais perigosos (bombeiros + saude + defesa_civil)
 
 NÍVEIS DE URGÊNCIA:
 - 5 (CRÍTICA): Risco iminente de morte, grandes incêndios, crimes violentos em andamento
@@ -153,13 +157,6 @@ NÍVEIS DE URGÊNCIA:
 - 3 (MÉDIA): Ferimentos moderados, situações de risco controlado
 - 2 (BAIXA): Problemas menores, orientações
 - 1 (MÍNIMA): Informações, prevenção
-
-TEMPOS DE RESPOSTA TÍPICOS:
-- Crítica: "Imediato (0-4 minutos)"
-- Alta: "Urgente (5-10 minutos)"
-- Média: "Moderado (11-20 minutos)"
-- Baixa: "Normal (21-60 minutos)"
-- Mínima: "Quando possível (1+ horas)"
 
 {context}
 
@@ -183,17 +180,18 @@ Analise este relato e forneça a classificação estruturada conforme as diretri
         try:
             stats = self.rag_service.get_stats()
             if stats.get("total_documents", 0) == 0:
-                print("📚 Populando base de conhecimento inicial...")
+                print("📚 Populando base de conhecimento...")
                 self.rag_service.populate_initial_knowledge_base()
         except Exception as e:
             print(f"⚠️ Aviso: Erro ao verificar base de conhecimento: {e}")
     
-    def classify_emergency(self, relato_ocorrencia: str) -> EmergencyClassification:
+    def classify_emergency(self, relato_ocorrencia: str, emergency_classification: Optional[Dict[str, Any]] = None) -> EmergencyClassification:
         """
         Classifica uma ocorrência de emergência.
         
         Args:
             relato_ocorrencia: Descrição da ocorrência
+            emergency_classification: Resultado do emergency_classifier.py (opcional)
             
         Returns:
             EmergencyClassification: Resultado estruturado da classificação
@@ -201,6 +199,35 @@ Analise este relato e forneça a classificação estruturada conforme as diretri
         try:
             # Busca contexto relevante via RAG
             enhanced_context = self.rag_service.get_enhanced_context(relato_ocorrencia)
+            
+            # Adiciona informações do emergency_classifier se disponível
+            if emergency_classification:
+                tipos_emergencia = emergency_classification.get("tipos_emergencia", [])
+                justificativa_emergencia = emergency_classification.get("justificativa", "")
+                confianca_emergencia = emergency_classification.get("confianca", 0.0)
+                
+                # Mapeia tipos do emergency_classifier para canais do urgency_classifier
+                mapeamento_canais = {
+                    "samu": "saude",
+                    "policia": "policia", 
+                    "bombeiro": "bombeiros"
+                }
+                
+                canais_sugeridos = []
+                for tipo in tipos_emergencia:
+                    canal = mapeamento_canais.get(tipo, tipo)
+                    canais_sugeridos.append(canal)
+                
+                classificacao_previa = f"""
+CLASSIFICAÇÃO PRÉVIA DO EMERGENCY CLASSIFIER:
+- Tipos identificados: {', '.join(tipos_emergencia).upper()}
+- Canais sugeridos: {', '.join(canais_sugeridos)}
+- Justificativa: {justificativa_emergencia}
+- Confiança: {confianca_emergencia:.1%}
+
+Use esta informação como referência adicional para sua análise.
+"""
+                enhanced_context += f"\n\n{classificacao_previa}"
             
             # Prepara prompt
             formatted_prompt = self.prompt_template.format_messages(
@@ -215,18 +242,16 @@ Analise este relato e forneça a classificação estruturada conforme as diretri
             # Parseia resposta
             classification = self.output_parser.parse(response.content)
             
-            print("✅ Classificação realizada com sucesso!")
+            print("📋 Classificação concluída")
             return classification
             
         except Exception as e:
             print(f"❌ Erro na classificação: {e}")
             # Retorna classificação de fallback
             return EmergencyClassification(
-                canal="saude",  # Canal seguro por padrão
+                canal=["saude"],  # Canal seguro por padrão
                 nivel_urgencia=4,  # Alta urgência por segurança
                 justificativa=f"Erro na classificação automática: {e}. Direcionado para avaliação manual urgente.",
-                acoes_recomendadas=["Avaliação manual imediata", "Contato direto com operador"],
-                tempo_resposta_estimado="Imediato (avaliação manual)",
                 confidence_score=0.1
             )
     
@@ -266,19 +291,18 @@ Analise este relato e forneça a classificação estruturada conforme as diretri
             5: "CRÍTICA"
         }
         
+        # Formata os canais
+        canais_str = ", ".join(canal.upper() for canal in classification.canal)
+        
         summary = f"""
 🚨 CLASSIFICAÇÃO DE EMERGÊNCIA 🚨
 
-📍 CANAL: {classification.canal.upper()}
+📍 CANAL(IS): {canais_str}
 🔥 URGÊNCIA: {urgency_labels[classification.nivel_urgencia]} (Nível {classification.nivel_urgencia})
-⏰ TEMPO RESPOSTA: {classification.tempo_resposta_estimado}
 🎯 CONFIANÇA: {classification.confidence_score:.1%}
 
 📋 JUSTIFICATIVA:
 {classification.justificativa}
-
-✅ AÇÕES RECOMENDADAS:
-{chr(10).join(f"• {acao}" for acao in classification.acoes_recomendadas)}
 """
         return summary.strip()
     
@@ -329,11 +353,37 @@ def test_classifier():
     try:
         classifier = UrgencyClassifier()
         
+        # Simula uso com emergency_classifier
+        try:
+            from .emergency_classifier import EmergencyClassifierAgent
+            emergency_classifier = EmergencyClassifierAgent()
+            use_emergency_classifier = True
+            print("📋 Usando emergency_classifier como referência")
+        except ImportError:
+            try:
+                from emergency_classifier import EmergencyClassifierAgent
+                emergency_classifier = EmergencyClassifierAgent()
+                use_emergency_classifier = True
+                print("📋 Usando emergency_classifier como referência")
+            except ImportError:
+                use_emergency_classifier = False
+                print("⚠️ emergency_classifier não disponível - usando apenas urgency_classifier")
+        
         for i, case in enumerate(test_cases, 1):
             print(f"\n--- TESTE {i} ---")
             print(f"Relato: {case}")
             
-            result = classifier.classify_emergency(case)
+            # Usa emergency_classifier se disponível
+            emergency_result = None
+            if use_emergency_classifier:
+                try:
+                    emergency_result = emergency_classifier.classify_emergency(case)
+                    print(f"Emergency Classifier: {', '.join(emergency_result['tipos_emergencia']).upper()}")
+                except Exception as e:
+                    print(f"⚠️ Erro no emergency_classifier: {e}")
+                    emergency_result = None
+            
+            result = classifier.classify_emergency(case, emergency_result)
             print(classifier.get_classification_summary(result))
             
     except Exception as e:

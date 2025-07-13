@@ -1,11 +1,13 @@
 import os
 from typing import Dict, Any, List
 from enum import Enum
-
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
+
+load_dotenv()
 
 
 class EmergencyType(str, Enum):
@@ -23,9 +25,7 @@ class EmergencyClassification(BaseModel):
     justificativa: str = Field(
         description="Justificativa detalhada para a classificação"
     )
-    acoes_sugeridas: list[str] = Field(
-        description="Lista de ações sugeridas para a situação"
-    )
+
     confianca: float = Field(
         description="Nível de confiança da classificação (0.0 a 1.0)"
     )
@@ -73,6 +73,7 @@ class EmergencyClassifierAgent:
 Você é um especialista em triagem de emergências do Brasil. Sua função é analisar descrições de situações e classificar quais serviços de emergência devem ser acionados.
 
 IMPORTANTE: Você DEVE escolher um ou mais dos serviços abaixo. SEMPRE retorne pelo menos um serviço.
+Para situações complexas, escolha MÚLTIPLOS serviços quando apropriado.
 
 SERVIÇOS DISPONÍVEIS:
 - SAMU: Emergências médicas, acidentes com feridos, problemas de saúde graves
@@ -126,8 +127,7 @@ INSTRUÇÕES:
 4. SEMPRE escolha pelo menos um serviço
 5. Para situações complexas, escolha múltiplos serviços
 6. Forneça justificativa clara
-7. Sugira ações práticas
-8. Avalie sua confiança na classificação
+7. Avalie sua confiança na classificação
 
 TEXTO DA EMERGÊNCIA: {texto_emergencia}
 
@@ -156,11 +156,10 @@ Responda APENAS com o JSON estruturado conforme solicitado.
             # Parse da resposta estruturada
             parsed_response = self.output_parser.parse(response.content)
             
-            # Converte para dicionário
+            # Converte para dicionário - múltiplos tipos suportados
             result = {
                 "tipos_emergencia": [tipo.value for tipo in parsed_response.tipos_emergencia],
                 "justificativa": parsed_response.justificativa,
-                "acoes_sugeridas": parsed_response.acoes_sugeridas,
                 "confianca": parsed_response.confianca,
                 "status": "sucesso"
             }
@@ -173,7 +172,6 @@ Responda APENAS com o JSON estruturado conforme solicitado.
                 "erro": str(e),
                 "tipos_emergencia": ["samu"],  # Default para emergência médica
                 "justificativa": f"Erro ao processar: {str(e)}. Classificação padrão: SAMU por segurança.",
-                "acoes_sugeridas": ["Tente reformular a descrição da emergência", "Em caso de dúvida, ligue 192 (SAMU)"],
                 "confianca": 0.0
             }
     
@@ -206,3 +204,51 @@ Responda APENAS com o JSON estruturado conforme solicitado.
         }
         
         return [contacts.get(emergency_type, contacts["samu"]) for emergency_type in emergency_types]
+
+
+def test_classifier():
+    """Função de teste para o classificador de emergências."""
+    # Exemplos de teste - incluindo casos de múltiplos tipos
+    test_cases = [
+        "Tem fogo na casa do vizinho, muita fumaça!",
+        "Meu pai teve um infarto, não está respirando bem",
+        "Tem um homem armado na praça ameaçando as pessoas",
+        "Batida de carro na esquina, um ferido consciente",
+        "Vazamento de gás no prédio, cheiro forte",
+        "Assalto em andamento no banco, ladrão armado e tem feridos",
+        "Pessoa presa no elevador há 2 horas",
+        "Criança engasgada, não consegue respirar",
+        "Briga de vizinhos com facas, tem sangue",
+        "Árvore caiu na rua bloqueando a passagem",
+        "Incêndio no prédio com pessoas presas nos andares superiores",
+        "Acidente de carro com vítima presa nas ferragens e inconsciente",
+        "Assalto à mão armada com vítima baleada",
+        "Explosão em posto de gasolina com feridos e fogo"
+    ]
+    
+    print("🧪 Iniciando testes do classificador de emergências...")
+    
+    try:
+        classifier = EmergencyClassifierAgent()
+        
+        for i, case in enumerate(test_cases, 1):
+            print(f"\n--- TESTE {i} ---")
+            print(f"Relato: {case}")
+            
+            result = classifier.classify_emergency(case)
+            tipos_str = ", ".join(result['tipos_emergencia']).upper()
+            print(f"Tipos: {tipos_str}")
+            print(f"Confiança: {result['confianca']:.1%}")
+            print(f"Status: {result['status']}")
+            print(f"Justificativa: {result['justificativa']}")
+            
+            # Verifica se retornou múltiplos tipos
+            if len(result['tipos_emergencia']) > 1:
+                print("✅ MÚLTIPLOS TIPOS DETECTADOS!")
+            
+    except Exception as e:
+        print(f"❌ Erro nos testes: {e}")
+
+
+if __name__ == "__main__":
+    test_classifier()

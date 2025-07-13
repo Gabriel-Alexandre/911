@@ -65,7 +65,7 @@ class RAGService:
         try:
             self.vector_store = self.db_config.get_vector_store(self.embeddings)
             self.db_config.create_collection_if_not_exists()
-            print("✅ Vector store inicializado com sucesso!")
+            print("🔗 Vector store inicializado")
         except Exception as e:
             print(f"❌ Erro ao inicializar vector store: {e}")
             raise
@@ -107,7 +107,7 @@ class RAGService:
             # Adiciona ao vector store
             if self.vector_store:
                 self.vector_store.add_documents(doc_objects)
-                print(f"✅ {len(doc_objects)} chunks adicionados à base de conhecimento.")
+                print(f"📝 {len(doc_objects)} chunks adicionados")
                 return True
             else:
                 print("❌ Vector store não inicializado.")
@@ -117,7 +117,7 @@ class RAGService:
             print(f"❌ Erro ao adicionar documentos: {e}")
             return False
     
-    def search_relevant_context(self, query: str, top_k: int = 5, score_threshold: float = 1.2) -> List[Dict[str, Any]]:
+    def search_relevant_context(self, query: str, top_k: int = 5, score_threshold: float = 1.5) -> List[Dict[str, Any]]:
         """
         Busca contexto relevante na base de conhecimento.
         
@@ -141,9 +141,9 @@ class RAGService:
             )
             
             # DEBUG: Mostra os scores retornados
-            print(f"🔍 DEBUG - Scores brutos do Chroma para '{query}':")
-            for i, (doc, score) in enumerate(results):
-                print(f"   {i+1}. Score: {score:.4f} | Conteúdo: {doc.page_content[:50]}...")
+            # print(f"🔍 DEBUG - Scores brutos do Chroma para '{query}':")
+            # for i, (doc, score) in enumerate(results):
+            #     print(f"   {i+1}. Score: {score:.4f} | Conteúdo: {doc.page_content[:50]}...")
             
             # Filtra por threshold e formata resultados
             relevant_contexts = []
@@ -157,7 +157,7 @@ class RAGService:
                         "similarity_score": max(0, 1 - (score / 2))  # Normaliza para 0-1
                     })
             
-            print(f"✅ Encontrados {len(relevant_contexts)} contextos relevantes (threshold: {score_threshold}).")
+            print(f"📚 {len(relevant_contexts)} contextos relevantes")
             return relevant_contexts
             
         except Exception as e:
@@ -353,11 +353,15 @@ class RAGService:
             bool: True se carregamento foi bem-sucedido
         """
         try:
+            # Obtém o diretório base do projeto
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(current_dir)  # Sobe um nível para sair da pasta agentes
+            
             # Diretórios a serem processados
             database_dirs = {
-                "bombeiros": "database/Bombeiros",
-                "policia": "database/Policia", 
-                "saude": "database/Saude"
+                "bombeiros": os.path.join(project_root, "database", "Bombeiros"),
+                "policia": os.path.join(project_root, "database", "Policia"), 
+                "saude": os.path.join(project_root, "database", "Saude")
             }
             
             total_files_processed = 0
@@ -639,32 +643,7 @@ class RAGService:
             print(f"❌ Erro ao limpar base de conhecimento: {e}")
             return False
 
-# Exemplo de uso da função load_database_files_to_knowledge_base:
-"""
-# Inicializar o serviço RAG
-rag_service = RAGService(openai_api_key="sua_chave_aqui")
 
-# Carregar todos os arquivos das pastas database
-# Suporta: PDF, CSV, XLSX, TXT
-success = rag_service.load_database_files_to_knowledge_base()
-
-if success:
-    print("✅ Arquivos carregados com sucesso!")
-    
-    # Testar busca
-    results = rag_service.search_relevant_context("primeiros socorros")
-    for result in results:
-        print(f"Conteúdo: {result['content'][:100]}...")
-        print(f"Categoria: {result['metadata']['category']}")
-        print(f"Arquivo: {result['metadata']['filename']}")
-        print(f"Tipo: {result['metadata']['file_type']}")
-        print("---")
-else:
-    print("❌ Falha no carregamento dos arquivos")
-
-# Tipos de arquivo suportados:
-# - PDF: Extração de texto completo
-# - CSV: Conversão para texto estruturado
-# - XLSX: Processamento de múltiplas planilhas
-# - TXT: Leitura com múltiplas codificações
-"""
+if __name__ == "__main__":
+    rag_service = RAGService()
+    rag_service.load_database_files_to_knowledge_base()
