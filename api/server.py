@@ -371,15 +371,6 @@ async def create_ticket_with_emergency(backend_data: BackendEmergencyData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# === ROTAS DE UTILITÁRIOS ===
-
-@app.get("/api/mock/emergencies")
-async def get_mock_emergencies():
-    """
-    Retornar dados mock para desenvolvimento
-    GET /api/mock/emergencies
-    """
-    return emergency_service.get_mock_emergencies()
 
 @app.get("/health")
 async def health_check():
@@ -414,6 +405,5 @@ async def root():
             "health": "/health",
             "emergencies": "/api/emergencies",
             "tickets": "/api/tickets",
-            "mock_data": "/api/mock/emergencies"
         }
     } 
