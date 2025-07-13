@@ -12,7 +12,15 @@ from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, H
 from langchain.schema import BaseOutputParser
 from langchain.schema.output_parser import OutputParserException
 from pydantic import BaseModel, Field
-from .rag_service import RAGService
+from dotenv import load_dotenv
+
+# Importação robusta que funciona tanto em execução direta quanto como módulo
+try:
+    from .rag_service import RAGService
+except ImportError:
+    from rag_service import RAGService
+
+load_dotenv()
 
 @dataclass
 class EmergencyClassification:

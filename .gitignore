@@ -1,2 +1,4 @@
 .venv/
+chroma_db/
+database/
 .env

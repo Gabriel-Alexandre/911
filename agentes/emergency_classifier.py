@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Any, List
 from enum import Enum
-import json
 
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -207,6 +206,3 @@ Responda APENAS com o JSON estruturado conforme solicitado.
         }
         
         return [contacts.get(emergency_type, contacts["samu"]) for emergency_type in emergency_types]
-
-
-# Arquivo principal do agente - use teste_agente.py para testar 

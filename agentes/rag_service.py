@@ -4,7 +4,10 @@ Fornece funções utilitárias para busca de contexto e gestão de conhecimento.
 """
 
 import os
+import pandas as pd
+import PyPDF2
 from typing import List, Dict, Any, Optional, Tuple
+from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.schema import Document
@@ -18,7 +21,11 @@ except ImportError:
     except ImportError:
         from langchain.vectorstores import Chroma
 
-from .vectordb_config import VectorDBConfig
+# Importação robusta que funciona tanto em execução direta quanto como módulo
+try:
+    from .vectordb_config import VectorDBConfig
+except ImportError:
+    from vectordb_config import VectorDBConfig
 
 class RAGService:
     """Serviço para operações de RAG (Retrieval-Augmented Generation)."""
@@ -110,14 +117,14 @@ class RAGService:
             print(f"❌ Erro ao adicionar documentos: {e}")
             return False
     
-    def search_relevant_context(self, query: str, top_k: int = 5, score_threshold: float = 0.7) -> List[Dict[str, Any]]:
+    def search_relevant_context(self, query: str, top_k: int = 5, score_threshold: float = 1.2) -> List[Dict[str, Any]]:
         """
         Busca contexto relevante na base de conhecimento.
         
         Args:
             query: Consulta de busca
             top_k: Número máximo de resultados
-            score_threshold: Threshold mínimo de similaridade
+            score_threshold: Threshold máximo de distância (valores menores = mais similar)
             
         Returns:
             List[Dict]: Lista de contextos relevantes com metadados
@@ -133,17 +140,24 @@ class RAGService:
                 k=top_k
             )
             
+            # DEBUG: Mostra os scores retornados
+            print(f"🔍 DEBUG - Scores brutos do Chroma para '{query}':")
+            for i, (doc, score) in enumerate(results):
+                print(f"   {i+1}. Score: {score:.4f} | Conteúdo: {doc.page_content[:50]}...")
+            
             # Filtra por threshold e formata resultados
             relevant_contexts = []
             for doc, score in results:
-                if score <= (1 - score_threshold):  # Chroma usa distância (menor = mais similar)
+                # Chroma usa distância (menor = mais similar)
+                # Aceita scores menores que o threshold
+                if score <= score_threshold:
                     relevant_contexts.append({
                         "content": doc.page_content,
                         "metadata": doc.metadata,
-                        "similarity_score": 1 - score  # Converte para similaridade
+                        "similarity_score": max(0, 1 - (score / 2))  # Normaliza para 0-1
                     })
             
-            print(f"✅ Encontrados {len(relevant_contexts)} contextos relevantes.")
+            print(f"✅ Encontrados {len(relevant_contexts)} contextos relevantes (threshold: {score_threshold}).")
             return relevant_contexts
             
         except Exception as e:
@@ -330,6 +344,259 @@ class RAGService:
         
         return self.add_documents_to_knowledge_base(initial_documents, metadatas)
     
+    def load_database_files_to_knowledge_base(self) -> bool:
+        """
+        Carrega todos os arquivos das pastas database/Bombeiros, database/Policia e database/Saude
+        para a base de conhecimento vetorial.
+        
+        Returns:
+            bool: True se carregamento foi bem-sucedido
+        """
+        try:
+            # Diretórios a serem processados
+            database_dirs = {
+                "bombeiros": "database/Bombeiros",
+                "policia": "database/Policia", 
+                "saude": "database/Saude"
+            }
+            
+            total_files_processed = 0
+            total_chunks_added = 0
+            
+            for category, dir_path in database_dirs.items():
+                print(f"📁 Processando arquivos da categoria: {category.upper()}")
+                
+                # Verifica se diretório existe
+                if not os.path.exists(dir_path):
+                    print(f"⚠️  Diretório não encontrado: {dir_path}")
+                    continue
+                
+                # Percorre todos os arquivos do diretório
+                for file_path in Path(dir_path).rglob("*"):
+                    if file_path.is_file():
+                        try:
+                            file_extension = file_path.suffix.lower()
+                            file_name = file_path.name
+                            
+                            print(f"📄 Processando arquivo: {file_name}")
+                            
+                            # Extrai conteúdo baseado na extensão
+                            content = ""
+                            if file_extension == ".pdf":
+                                content = self._extract_pdf_content(str(file_path))
+                            elif file_extension == ".csv":
+                                content = self._extract_csv_content(str(file_path))
+                            elif file_extension == ".xlsx":
+                                content = self._extract_xlsx_content(str(file_path))
+                            elif file_extension == ".txt":
+                                content = self._extract_txt_content(str(file_path))
+                            else:
+                                print(f"⚠️  Tipo de arquivo não suportado: {file_extension}")
+                                continue
+                            
+                            if content:
+                                # Prepara metadados
+                                metadata = {
+                                    "category": category,
+                                    "filename": file_name,
+                                    "file_path": str(file_path),
+                                    "file_type": file_extension,
+                                    "source": f"{category}_{file_name}"
+                                }
+                                
+                                # Adiciona à base de conhecimento
+                                if self.add_documents_to_knowledge_base([content], [metadata]):
+                                    total_files_processed += 1
+                                    # Estima chunks (aproximado)
+                                    estimated_chunks = len(content) // 1000
+                                    total_chunks_added += estimated_chunks
+                                    print(f"✅ Arquivo processado com sucesso!")
+                                else:
+                                    print(f"❌ Falha ao processar arquivo: {file_name}")
+                            else:
+                                print(f"⚠️  Conteúdo vazio ou erro na extração: {file_name}")
+                                
+                        except Exception as e:
+                            print(f"❌ Erro ao processar arquivo {file_path}: {e}")
+                            continue
+            
+            print(f"\n📊 RESUMO DO CARREGAMENTO:")
+            print(f"   - Arquivos processados: {total_files_processed}")
+            print(f"   - Chunks estimados: {total_chunks_added}")
+            print(f"   - Status: {'✅ Sucesso' if total_files_processed > 0 else '❌ Nenhum arquivo processado'}")
+            
+            return total_files_processed > 0
+            
+        except Exception as e:
+            print(f"❌ Erro geral no carregamento da base: {e}")
+            return False
+    
+    def _extract_pdf_content(self, pdf_path: str) -> str:
+        """
+        Extrai conteúdo de texto de um arquivo PDF.
+        
+        Args:
+            pdf_path: Caminho para o arquivo PDF
+            
+        Returns:
+            str: Conteúdo extraído do PDF
+        """
+        try:
+            content = ""
+            with open(pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                
+                for page_num in range(len(pdf_reader.pages)):
+                    page = pdf_reader.pages[page_num]
+                    content += page.extract_text() + "\n"
+            
+            return content.strip()
+            
+        except Exception as e:
+            print(f"❌ Erro ao extrair PDF {pdf_path}: {e}")
+            return ""
+    
+    def _extract_csv_content(self, csv_path: str) -> str:
+        """
+        Extrai conteúdo de um arquivo CSV e converte para texto estruturado.
+        
+        Args:
+            csv_path: Caminho para o arquivo CSV
+            
+        Returns:
+            str: Conteúdo estruturado do CSV
+        """
+        try:
+            # Tenta múltiplas codificações para CSVs brasileiros
+            encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'windows-1252']
+            
+            df = None
+            used_encoding = None
+            
+            for encoding in encodings:
+                try:
+                    df = pd.read_csv(csv_path, encoding=encoding)
+                    used_encoding = encoding
+                    break
+                except UnicodeDecodeError:
+                    continue
+                except Exception as e:
+                    if "codec" not in str(e).lower():
+                        print(f"❌ Erro não relacionado à codificação no CSV {csv_path}: {e}")
+                        continue
+            
+            if df is None:
+                print(f"⚠️  Não foi possível decodificar o CSV {csv_path} com nenhuma codificação")
+                return ""
+            
+            # Converte para texto estruturado
+            content = f"DADOS DO ARQUIVO: {os.path.basename(csv_path)}\n"
+            content += f"CODIFICAÇÃO USADA: {used_encoding}\n\n"
+            
+            # Adiciona informações sobre colunas
+            content += f"COLUNAS: {', '.join(df.columns.tolist())}\n\n"
+            
+            # Adiciona algumas estatísticas básicas
+            content += f"TOTAL DE REGISTROS: {len(df)}\n\n"
+            
+            # Adiciona dados (limitando para não ficar muito grande)
+            content += "DADOS:\n"
+            for index, row in df.head(100).iterrows():  # Limita a 100 linhas
+                row_text = " | ".join([f"{col}: {val}" for col, val in row.items() if pd.notna(val)])
+                content += f"{row_text}\n"
+            
+            if len(df) > 100:
+                content += f"\n... (exibindo apenas primeiras 100 linhas de {len(df)} registros)"
+            
+            return content
+            
+        except Exception as e:
+            print(f"❌ Erro ao extrair CSV {csv_path}: {e}")
+            return ""
+    
+    def _extract_xlsx_content(self, xlsx_path: str) -> str:
+        """
+        Extrai conteúdo de um arquivo XLSX e converte para texto estruturado.
+        
+        Args:
+            xlsx_path: Caminho para o arquivo XLSX
+            
+        Returns:
+            str: Conteúdo estruturado do XLSX
+        """
+        try:
+            # Lê o arquivo Excel
+            excel_file = pd.ExcelFile(xlsx_path)
+            content = f"DADOS DO ARQUIVO EXCEL: {os.path.basename(xlsx_path)}\n\n"
+            
+            # Processa cada planilha
+            for sheet_name in excel_file.sheet_names:
+                content += f"PLANILHA: {sheet_name}\n"
+                content += "=" * 50 + "\n"
+                
+                # Lê os dados da planilha
+                df = pd.read_excel(xlsx_path, sheet_name=sheet_name)
+                
+                # Adiciona informações sobre colunas
+                content += f"COLUNAS: {', '.join(df.columns.tolist())}\n\n"
+                
+                # Adiciona estatísticas básicas
+                content += f"TOTAL DE REGISTROS: {len(df)}\n\n"
+                
+                # Adiciona dados (limitando para não ficar muito grande)
+                content += "DADOS:\n"
+                for index, row in df.head(50).iterrows():  # Limita a 50 linhas por planilha
+                    row_text = " | ".join([f"{col}: {val}" for col, val in row.items()])
+                    content += f"{row_text}\n"
+                
+                if len(df) > 50:
+                    content += f"\n... (exibindo apenas primeiras 50 linhas de {len(df)} registros)\n"
+                
+                content += "\n" + "=" * 50 + "\n\n"
+            
+            return content
+            
+        except Exception as e:
+            print(f"❌ Erro ao extrair XLSX {xlsx_path}: {e}")
+            return ""
+    
+    def _extract_txt_content(self, txt_path: str) -> str:
+        """
+        Extrai conteúdo de um arquivo TXT.
+        
+        Args:
+            txt_path: Caminho para o arquivo TXT
+            
+        Returns:
+            str: Conteúdo do arquivo TXT
+        """
+        try:
+            # Tenta diferentes codificações
+            encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+            
+            for encoding in encodings:
+                try:
+                    with open(txt_path, 'r', encoding=encoding) as file:
+                        content = file.read()
+                        
+                    # Adiciona cabeçalho com informações do arquivo
+                    header = f"ARQUIVO DE TEXTO: {os.path.basename(txt_path)}\n"
+                    header += f"CODIFICAÇÃO: {encoding}\n"
+                    header += "=" * 50 + "\n\n"
+                    
+                    return header + content.strip()
+                    
+                except UnicodeDecodeError:
+                    continue
+            
+            # Se nenhuma codificação funcionou
+            print(f"⚠️  Não foi possível decodificar o arquivo {txt_path}")
+            return ""
+            
+        except Exception as e:
+            print(f"❌ Erro ao extrair TXT {txt_path}: {e}")
+            return ""
+    
     def get_stats(self) -> Dict[str, Any]:
         """
         Retorna estatísticas da base de conhecimento.
@@ -371,3 +638,33 @@ class RAGService:
         except Exception as e:
             print(f"❌ Erro ao limpar base de conhecimento: {e}")
             return False
+
+# Exemplo de uso da função load_database_files_to_knowledge_base:
+"""
+# Inicializar o serviço RAG
+rag_service = RAGService(openai_api_key="sua_chave_aqui")
+
+# Carregar todos os arquivos das pastas database
+# Suporta: PDF, CSV, XLSX, TXT
+success = rag_service.load_database_files_to_knowledge_base()
+
+if success:
+    print("✅ Arquivos carregados com sucesso!")
+    
+    # Testar busca
+    results = rag_service.search_relevant_context("primeiros socorros")
+    for result in results:
+        print(f"Conteúdo: {result['content'][:100]}...")
+        print(f"Categoria: {result['metadata']['category']}")
+        print(f"Arquivo: {result['metadata']['filename']}")
+        print(f"Tipo: {result['metadata']['file_type']}")
+        print("---")
+else:
+    print("❌ Falha no carregamento dos arquivos")
+
+# Tipos de arquivo suportados:
+# - PDF: Extração de texto completo
+# - CSV: Conversão para texto estruturado
+# - XLSX: Processamento de múltiplas planilhas
+# - TXT: Leitura com múltiplas codificações
+"""
