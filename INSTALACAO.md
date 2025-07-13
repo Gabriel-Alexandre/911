@@ -95,18 +95,6 @@ WEBHOOK_URL=http://localhost:8000/webhook
 OPENAI_API_KEY=sua_chave_openai_aqui
 ```
 
-## 🔍 Verificação
-
-Teste se tudo está funcionando:
-
-```bash
-# Verificar configurações
-python exemplo_uso_api.py
-
-# Verificar dependências
-python -c "import fastapi, uvicorn, httpx, openai; print('✅ Todas as dependências instaladas!')"
-```
-
 ## 🆘 Troubleshooting
 
 ### Erro: "externally-managed-environment"
