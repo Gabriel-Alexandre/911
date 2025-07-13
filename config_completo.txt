@@ -16,7 +16,6 @@ EV_API_KEY=sua_api_key_evolution_aqui
 EV_INSTANCE=sua_instancia_aqui
 
 # URL do webhook (deve ser acessível pela Evolution API)
-WEBHOOK_URL=http://localhost:8000/webhook
 
 # ========================================
 # CONFIGURAÇÕES OPENAI
@@ -79,17 +78,26 @@ RELOAD=true
 # Nível de log (opcional)
 LOG_LEVEL=info
 
-# ========================================
-# INSTRUÇÕES DE USO
-# ========================================
+# Evolution api
+# Autenticação
+AUTHENTICATION_API_KEY=uma_chave_segura
 
-# 1. Copie este arquivo para .env
-# 2. Configure as variáveis obrigatórias:
-#    - EV_API_KEY: Chave da API da Evolution API
-#    - EV_INSTANCE: Nome da instância da Evolution API
-#    - WEBHOOK_URL: URL do webhook (deve ser acessível)
-#    - OPENAI_API_KEY: Chave da API OpenAI
-#
-# 3. Configure as variáveis opcionais conforme necessário
-#
-# 4. Execute o servidor: python app.py 
+# Database
+DATABASE_ENABLED=true
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI=postgresql://evolution:examplepassword@postgres:5432/evolution?schema=public
+DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+
+# Salvamento de dados
+DATABASE_SAVE_DATA_INSTANCE=true
+DATABASE_SAVE_DATA_NEW_MESSAGE=true
+DATABASE_SAVE_DATA_CONTACTS=true
+DATABASE_SAVE_DATA_CHATS=true
+DATABASE_SAVE_DATA_LABELS=true
+DATABASE_SAVE_DATA_HISTORIC=true
+
+# Redis
+CACHE_REDIS_ENABLED=true
+CACHE_REDIS_URI=redis://redis:6379
+CACHE_REDIS_PREFIX_KEY=evolution_api
+CACHE_REDIS_SAVE_INSTANCES=false

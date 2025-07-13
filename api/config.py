@@ -16,7 +16,6 @@ class APIConfig:
     EV_URL: str = os.getenv("EV_URL", "http://localhost:8080")
     EV_API_KEY: Optional[str] = os.getenv("EV_API_KEY")
     EV_INSTANCE: Optional[str] = os.getenv("EV_INSTANCE")
-    WEBHOOK_URL: Optional[str] = os.getenv("WEBHOOK_URL")
     
     # Configuração OpenAI
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
@@ -33,7 +32,6 @@ class APIConfig:
         required_vars = [
             cls.EV_API_KEY,
             cls.EV_INSTANCE,
-            cls.WEBHOOK_URL,
             cls.OPENAI_API_KEY
         ]
         
@@ -41,7 +39,6 @@ class APIConfig:
         for var_name, var_value in [
             ("EV_API_KEY", cls.EV_API_KEY),
             ("EV_INSTANCE", cls.EV_INSTANCE),
-            ("WEBHOOK_URL", cls.WEBHOOK_URL),
             ("OPENAI_API_KEY", cls.OPENAI_API_KEY)
         ]:
             if not var_value:
