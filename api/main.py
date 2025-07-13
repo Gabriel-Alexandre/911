@@ -3,7 +3,7 @@ Arquivo principal para executar o servidor para o modulo de on caller
 """
 
 import uvicorn
-from .webhook_server import app
+from .server import app
 from .config import APIConfig
 
 def main():

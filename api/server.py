@@ -169,7 +169,7 @@ def classificar_emergencia(relato: str):
     emergency_result = emergency_classifier.classify_emergency(relato)
         
     # Passo 2: Classificar urgência usando o resultado anterior
-     urgency_result = urgency_classifier.classify_emergency(relato, emergency_result)
+    urgency_result = urgency_classifier.classify_emergency(relato, emergency_result)
         
     # Passo 3: Retornar resultado completo em formato de dicionário
     return {
