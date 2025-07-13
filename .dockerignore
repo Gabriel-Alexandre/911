@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+venv/
+.venv/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Documentation
+README*.md
+INSTALACAO.md
+config_completo.txt
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Development
+teste_agente.py
+exemplo_uso.py
+test_list.py
+setup_env.py 

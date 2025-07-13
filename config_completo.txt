@@ -1,0 +1,95 @@
+# ========================================
+# CONFIGURAÇÕES DO SISTEMA DE EMERGÊNCIA 911
+# ========================================
+
+# ========================================
+# CONFIGURAÇÕES DA EVOLUTION API (WEBHOOK)
+# ========================================
+
+# URL da Evolution API
+EV_URL=http://localhost:8080
+
+# Chave da API da Evolution API (obrigatório)
+EV_API_KEY=sua_api_key_evolution_aqui
+
+# Nome da instância da Evolution API (obrigatório)
+EV_INSTANCE=sua_instancia_aqui
+
+# URL do webhook (deve ser acessível pela Evolution API)
+WEBHOOK_URL=http://localhost:8000/webhook
+
+# ========================================
+# CONFIGURAÇÕES OPENAI
+# ========================================
+
+# Chave da API OpenAI (obrigatório para transcrição e LLM)
+OPENAI_API_KEY=sua_chave_openai_aqui
+
+# Modelo OpenAI para LLM (opcional)
+OPENAI_MODEL=gpt-4o-mini
+
+# Temperatura do modelo (opcional)
+OPENAI_TEMPERATURE=0.1
+
+# Máximo de tokens (opcional)
+OPENAI_MAX_TOKENS=1000
+
+# ========================================
+# CONFIGURAÇÕES DO CHROMA (VECTOR DB)
+# ========================================
+
+# Host do Chroma (opcional)
+CHROMA_HOST=localhost
+
+# Porta do Chroma (opcional)
+CHROMA_PORT=8000
+
+# Diretório de persistência do Chroma (opcional)
+CHROMA_PERSIST_DIRECTORY=./chroma_db
+
+# ========================================
+# CONFIGURAÇÕES RAG (RETRIEVAL AUGMENTED GENERATION)
+# ========================================
+
+# Modelo de embeddings (opcional)
+EMBEDDING_MODEL=text-embedding-3-small
+
+# Tamanho dos chunks (opcional)
+CHUNK_SIZE=1000
+
+# Sobreposição dos chunks (opcional)
+CHUNK_OVERLAP=200
+
+# Comprimento máximo do contexto (opcional)
+MAX_CONTEXT_LENGTH=2000
+
+# ========================================
+# CONFIGURAÇÕES DO SERVIDOR WEBHOOK
+# ========================================
+
+# Host do servidor (opcional)
+HOST=0.0.0.0
+
+# Porta do servidor (opcional)
+PORT=8000
+
+# Modo reload para desenvolvimento (opcional)
+RELOAD=true
+
+# Nível de log (opcional)
+LOG_LEVEL=info
+
+# ========================================
+# INSTRUÇÕES DE USO
+# ========================================
+
+# 1. Copie este arquivo para .env
+# 2. Configure as variáveis obrigatórias:
+#    - EV_API_KEY: Chave da API da Evolution API
+#    - EV_INSTANCE: Nome da instância da Evolution API
+#    - WEBHOOK_URL: URL do webhook (deve ser acessível)
+#    - OPENAI_API_KEY: Chave da API OpenAI
+#
+# 3. Configure as variáveis opcionais conforme necessário
+#
+# 4. Execute o servidor: python app.py 
