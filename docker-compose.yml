@@ -1,17 +1,4 @@
 services:
-  # ChromaDB Vector Database
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: chroma_vectordb
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-    command: ["uvicorn", "chromadb.app:app", "--host", "0.0.0.0", "--port", "8000"]
-    restart: unless-stopped
-    networks:
-      - 911-network
-
   # Redis (cache)
   redis:
     image: redis:7-alpine
@@ -65,20 +52,16 @@ services:
       - EV_API_KEY=${EV_API_KEY}
       - EV_INSTANCE=${EV_INSTANCE}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
       - HOST=0.0.0.0
       - PORT=8000
       - LOG_LEVEL=info
     depends_on:
-      - chromadb
       - evolution-api
     restart: unless-stopped
     networks:
       - 911-network
 
 volumes:
-  chroma_data:
   evolution_pgdata:
   evolution_instances:
 
