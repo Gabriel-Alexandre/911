@@ -1,0 +1,228 @@
+"Tem fogo na casa do vizinho, muita fumaça!",['bombeiro'],5
+"Meu pai teve um infarto, não está respirando bem",['samu'],4
+Tem um homem armado na praça ameaçando as pessoas,['policia'],5
+"Batida de carro na esquina, um ferido consciente","['bombeiro', 'samu']",4
+"Vazamento de gás no prédio, cheiro forte",['bombeiro'],5
+"Assalto em andamento no banco, ladrão armado e tem feridos","['samu', 'policia']",5
+Pessoa presa no elevador há 2 horas,['bombeiro'],5
+"Criança engasgada, não consegue respirar",['samu'],3
+"Briga de vizinhos com facas, tem sangue",['samu'],3
+Árvore caiu na rua bloqueando a passagem,['samu'],3
+Incêndio no prédio com pessoas presas nos andares superiores,['bombeiro'],5
+Acidente de carro com vítima presa nas ferragens e inconsciente,"['bombeiro', 'samu']",4
+Assalto à mão armada com vítima baleada,['policia'],5
+Explosão em posto de gasolina com feridos e fogo,"['bombeiro', 'samu']",5
+Minha mãe caiu e não consegue se mexer,['samu'],3
+Homem estranho na frente de casa com uma faca,['samu'],3
+"Minha filha se engasgou com bala, não respira direito",['samu'],3
+"Batida grave na esquina, tem sangue e gritos","['bombeiro', 'samu']",4
+"Fumaça no apartamento do lado, parece fogo",['bombeiro'],5
+Vizinho agredindo a esposa dele,['samu'],3
+"Pessoa foi atropelada na frente de casa, está sangrando",['samu'],4
+"Minha avó está passando mal, não fala",['samu'],3
+Homem tentando invadir minha casa,['policia'],5
+"Ouvi tiros na rua, estou escondida",['policia'],5
+"Poste caiu na rua após chuva, está faiscando",['bombeiro'],5
+"Mulher do apartamento gritando, parece briga séria",['samu'],3
+"Meu filho caiu da escada, está desacordado",['samu'],4
+"Carro capotou, tem gente presa",['samu'],3
+"Barulho de explosão em galpão, está pegando fogo",['bombeiro'],5
+"Tia vomitando sangue, parece grave",['samu'],4
+"Homem foi esfaqueado no bar, sangra muito",['policia'],5
+Cachorro bravo atacando pessoas no parque,['samu'],3
+"Homem armado entrou na loja, fazendo reféns",['policia'],5
+"Amiga tomou muitos remédios, inconsciente",['samu'],4
+"Minha mãe com dor no peito, pode ser infarto",['samu'],4
+Cheiro forte de gás no prédio,['bombeiro'],5
+Vizinha desmaiada e sangrando no banheiro,['samu'],4
+Explosão no posto de gasolina da esquina,['bombeiro'],5
+"Tiroteio na rua, pessoas correndo",['policia'],5
+Filha com febre alta e convulsão,['samu'],4
+"Carro bateu em poste, tem gente dentro",['samu'],3
+Homem nu gritando e ameaçando pessoas na rua,['policia'],4
+Tentativa de assalto no portão de casa,['policia'],5
+"Marido se cortou com vidro, muito sangue",['samu'],3
+"Amiga desmaiou na rua, não responde",['samu'],3
+Agressão a mulher no ponto de ônibus,['samu'],3
+"Casa alagando, água nos quartos",['bombeiro'],5
+Pessoas gritando presas no elevador,['bombeiro'],5
+Vizinha gritando pedindo ajuda,['samu'],3
+Fumaça preta saindo do mercado,['bombeiro'],5
+"Filha caiu de moto, não sente a perna",['samu'],3
+"Homem se debatendo na rua, parece crise",['samu'],3
+"Carro bateu na moto, vítima no chão",['samu'],3
+"Teto caiu em cima da avó, ela não responde",['samu'],3
+"Irmã tentou se cortar, muito sangue",['samu'],3
+Mulher em trabalho de parto com sangramento,['samu'],4
+Homem tentou agarrar mulher na rua,['samu'],3
+Escola evacuada por vazamento de gás,['bombeiro'],5
+"Assalto no mercado, dono baleado",['policia'],5
+"Avó caiu na cozinha, não responde",['samu'],3
+Homem tentando pular do prédio,['samu'],3
+Acidente com pessoa presa no carro,"['bombeiro', 'samu']",4
+Motorista desmaiou no ônibus,['samu'],3
+"Amiga caiu da laje, está inconsciente",['samu'],4
+"Irmã tomou muitos remédios, desesperada",['samu'],3
+Gritos vindos do apartamento ao lado,['samu'],3
+Árvore caída com fios faiscando,['bombeiro'],5
+Homem ameaçando se jogar da ponte,['policia'],4
+"Criança atropelada, motorista fugiu",['samu'],3
+"Mãe tremendo e babando, parece convulsão",['samu'],4
+"Mulher caiu da escada rolante, com dor",['samu'],3
+Cheiro de queimado forte no prédio,['samu'],3
+Homem invadiu casa da vizinha e trancou ela,['policia'],5
+"Vizinho caiu do andaime, não se mexe",['samu'],3
+Pessoa batendo forte preso no elevador,['bombeiro'],5
+"Explosão no apartamento, fumaça preta",['bombeiro'],5
+Prima com dor no peito e suor frio,['samu'],4
+"Homem surtado no bar, quebrando tudo e armado",['policia'],5
+"Amigo sumiu no rio, possível afogamento",['bombeiro'],5
+Irmão levou choque e desmaiou,['samu'],3
+Mulher gritando me solta há 10min,['samu'],3
+Homem se jogou na frente do trem,['samu'],3
+"Incêndio em casa próxima, pessoas gritando",['bombeiro'],5
+"Tia caiu da escada, dor na coluna",['samu'],3
+Homem trancou a família no quarto,['policia'],5
+Briga com faca na rua,['samu'],3
+"Irmão cortou braço na oficina, muito sangue",['samu'],3
+"Mulher desmaiou, olhos revirados",['samu'],3
+"Senhor caiu no ônibus, sangra na cabeça",['samu'],3
+Homem nu se jogando nos carros,['samu'],3
+"Amiga foi estuprada, está em choque",['policia'],5
+"Incêndio no prédio vizinho, pessoas nas janelas",['bombeiro'],5
+Tentativa de arrombar minha porta agora,['policia'],5
+Pai tossindo sangue,['samu'],3
+"Mãe com febre alta, não responde",['samu'],3
+Muro caiu em cima do carro,['samu'],3
+Pessoa baleada no mercado,['samu'],3
+Vazamento de gás no apartamento 103,['bombeiro'],5
+Bebê caiu da cama e parou de chorar,['samu'],3
+Mulher com faca ameaçando filhos na frente da escola,['policia'],4
+Segurança do shopping desmaiou,['samu'],3
+Tio bebeu demais e desmaiou,['samu'],3
+Gritos de mulher e criança na casa ao lado,['samu'],3
+Árvore caiu sobre carro com pessoas dentro,['samu'],3
+"Vazamento de gás no apartamento, morador preso",['bombeiro'],5
+Motorista invadiu contramão e bateu no ônibus,['samu'],3
+Avó caiu no banheiro e sangra,['samu'],3
+"Vizinho com motosserra ligando de madrugada, ameaçando",['policia'],5
+Bebê chorando trancado dentro do carro,['samu'],3
+Homem estranho rondando escola com mochila grande,['samu'],3
+Pessoa com coração acelerado e falta de ar,['samu'],3
+Homem jogando gasolina em casa e incendiando,['samu'],3
+Irmã grávida caiu da escada e sangra,['samu'],3
+Caminhão tombou e derramou líquido tóxico,['bombeiro'],5
+"Tem fogo na casa do vizinho, muita fumaça!",bombeiro,5
+"Meu pai teve um infarto, não está respirando bem",samu,4
+Tem um homem armado na praça ameaçando as pessoas,policia,5
+"Batida de carro na esquina, um ferido consciente","bombeiro, samu",4
+"Vazamento de gás no prédio, cheiro forte",bombeiro,5
+"Assalto em andamento no banco, ladrão armado e tem feridos","samu, policia",5
+Pessoa presa no elevador há 2 horas,bombeiro,5
+"Criança engasgada, não consegue respirar",samu,3
+"Briga de vizinhos com facas, tem sangue",samu,3
+Árvore caiu na rua bloqueando a passagem,samu,3
+Incêndio no prédio com pessoas presas nos andares superiores,bombeiro,5
+Acidente de carro com vítima presa nas ferragens e inconsciente,"bombeiro, samu",4
+Assalto à mão armada com vítima baleada,policia,5
+Explosão em posto de gasolina com feridos e fogo,"bombeiro, samu",5
+Minha mãe caiu e não consegue se mexer,samu,3
+Homem estranho na frente de casa com uma faca,samu,3
+"Minha filha se engasgou com bala, não respira direito",samu,3
+"Batida grave na esquina, tem sangue e gritos","bombeiro, samu",4
+"Fumaça no apartamento do lado, parece fogo",bombeiro,5
+Vizinho agredindo a esposa dele,samu,3
+"Pessoa foi atropelada na frente de casa, está sangrando",samu,4
+"Minha avó está passando mal, não fala",samu,3
+Homem tentando invadir minha casa,policia,5
+"Ouvi tiros na rua, estou escondida",policia,5
+"Poste caiu na rua após chuva, está faiscando",bombeiro,5
+"Mulher do apartamento gritando, parece briga séria",samu,3
+"Meu filho caiu da escada, está desacordado",samu,4
+"Carro capotou, tem gente presa",samu,3
+"Barulho de explosão em galpão, está pegando fogo",bombeiro,5
+"Tia vomitando sangue, parece grave",samu,4
+"Homem foi esfaqueado no bar, sangra muito",policia,5
+Cachorro bravo atacando pessoas no parque,samu,3
+"Homem armado entrou na loja, fazendo reféns",policia,5
+"Amiga tomou muitos remédios, inconsciente",samu,4
+"Minha mãe com dor no peito, pode ser infarto",samu,4
+Cheiro forte de gás no prédio,bombeiro,5
+Vizinha desmaiada e sangrando no banheiro,samu,4
+Explosão no posto de gasolina da esquina,bombeiro,5
+"Tiroteio na rua, pessoas correndo",policia,5
+Filha com febre alta e convulsão,samu,4
+"Carro bateu em poste, tem gente dentro",samu,3
+Homem nu gritando e ameaçando pessoas na rua,policia,4
+Tentativa de assalto no portão de casa,policia,5
+"Marido se cortou com vidro, muito sangue",samu,3
+"Amiga desmaiou na rua, não responde",samu,3
+Agressão a mulher no ponto de ônibus,samu,3
+"Casa alagando, água nos quartos",bombeiro,5
+Pessoas gritando presas no elevador,bombeiro,5
+Vizinha gritando pedindo ajuda,samu,3
+Fumaça preta saindo do mercado,bombeiro,5
+"Filha caiu de moto, não sente a perna",samu,3
+"Homem se debatendo na rua, parece crise",samu,3
+"Carro bateu na moto, vítima no chão",samu,3
+"Teto caiu em cima da avó, ela não responde",samu,3
+"Irmã tentou se cortar, muito sangue",samu,3
+Mulher em trabalho de parto com sangramento,samu,4
+Homem tentou agarrar mulher na rua,samu,3
+Escola evacuada por vazamento de gás,bombeiro,5
+"Assalto no mercado, dono baleado",policia,5
+"Avó caiu na cozinha, não responde",samu,3
+Homem tentando pular do prédio,samu,3
+Acidente com pessoa presa no carro,"bombeiro, samu",4
+Motorista desmaiou no ônibus,samu,3
+"Amiga caiu da laje, está inconsciente",samu,4
+"Irmã tomou muitos remédios, desesperada",samu,3
+Gritos vindos do apartamento ao lado,samu,3
+Árvore caída com fios faiscando,bombeiro,5
+Homem ameaçando se jogar da ponte,policia,4
+"Criança atropelada, motorista fugiu",samu,3
+"Mãe tremendo e babando, parece convulsão",samu,4
+"Mulher caiu da escada rolante, com dor",samu,3
+Cheiro de queimado forte no prédio,samu,3
+Homem invadiu casa da vizinha e trancou ela,policia,5
+"Vizinho caiu do andaime, não se mexe",samu,3
+Pessoa batendo forte preso no elevador,bombeiro,5
+"Explosão no apartamento, fumaça preta",bombeiro,5
+Prima com dor no peito e suor frio,samu,4
+"Homem surtado no bar, quebrando tudo e armado",policia,5
+"Amigo sumiu no rio, possível afogamento",bombeiro,5
+Irmão levou choque e desmaiou,samu,3
+Mulher gritando me solta há 10min,samu,3
+Homem se jogou na frente do trem,samu,3
+"Incêndio em casa próxima, pessoas gritando",bombeiro,5
+"Tia caiu da escada, dor na coluna",samu,3
+Homem trancou a família no quarto,policia,5
+Briga com faca na rua,samu,3
+"Irmão cortou braço na oficina, muito sangue",samu,3
+"Mulher desmaiou, olhos revirados",samu,3
+"Senhor caiu no ônibus, sangra na cabeça",samu,3
+Homem nu se jogando nos carros,samu,3
+"Amiga foi estuprada, está em choque",policia,5
+"Incêndio no prédio vizinho, pessoas nas janelas",bombeiro,5
+Tentativa de arrombar minha porta agora,policia,5
+Pai tossindo sangue,samu,3
+"Mãe com febre alta, não responde",samu,3
+Muro caiu em cima do carro,samu,3
+Pessoa baleada no mercado,samu,3
+Vazamento de gás no apartamento 103,bombeiro,5
+Bebê caiu da cama e parou de chorar,samu,3
+Mulher com faca ameaçando filhos na frente da escola,policia,4
+Segurança do shopping desmaiou,samu,3
+Tio bebeu demais e desmaiou,samu,3
+Gritos de mulher e criança na casa ao lado,samu,3
+Árvore caiu sobre carro com pessoas dentro,samu,3
+"Vazamento de gás no apartamento, morador preso",bombeiro,5
+Motorista invadiu contramão e bateu no ônibus,samu,3
+Avó caiu no banheiro e sangra,samu,3
+"Vizinho com motosserra ligando de madrugada, ameaçando",policia,5
+Bebê chorando trancado dentro do carro,samu,3
+Homem estranho rondando escola com mochila grande,samu,3
+Pessoa com coração acelerado e falta de ar,samu,3
+Homem jogando gasolina em casa e incendiando,samu,3
+Irmã grávida caiu da escada e sangra,samu,3
+Caminhão tombou e derramou líquido tóxico,bombeiro,5
