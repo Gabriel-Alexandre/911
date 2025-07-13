@@ -99,10 +99,9 @@ async def webhook_handler(request: Request):
     try:
         # Obter dados do request
         body = await request.json()
-        logger.info(f"Webhook recebido: {json.dumps(body, indent=2)}")
         
         # Verificar se é um evento de mensagem
-        if body.get("event") == "MESSAGES_UPSERT":
+        if body.get("event") == "messages.upsert":
             await process_message_event(body.get("data", {}))
         
         return JSONResponse({"status": "success"})
@@ -119,8 +118,8 @@ async def process_message_event(data: Dict[str, Any]):
         message = data.get("message", {})
         
         user_jid = key.get("remoteJid", "unknown")
-        message_type = message.get("messageType", "unknown")
-        
+        message_type = data.get("messageType", "unknown")  # messageType está no nível raiz do data
+                
         if message_type == "conversation":
             # Mensagem de texto
             content = message.get("conversation", "")
@@ -128,25 +127,35 @@ async def process_message_event(data: Dict[str, Any]):
             
         elif message_type == "audioMessage":
             # Mensagem de áudio
+            logger.info(f"Processando mensagem de áudio de {user_jid}")
             audio_message = message.get("audioMessage", {})
             message_id = key.get("id")
             
+            logger.info(f"ID da mensagem: {message_id}")
+            logger.info(f"Dados do áudio: {json.dumps(audio_message, indent=2)}")
+            
             if message_id:
                 # Obter base64 do áudio
+                logger.info(f"Obtendo base64 da mensagem {message_id}")
                 base64_audio = await evolution_client.get_base64_from_media_message(message_id)
                 
                 if base64_audio:
+                    logger.info(f"Base64 obtido com sucesso, tamanho: {len(base64_audio)}")
                     # Transcrever áudio
                     transcription = await transcribe_audio(base64_audio)
                     
                     if transcription:
                         print(f"[ÁUDIO] {user_jid}: {transcription}")
+                        logger.info(f"Transcrição realizada: {transcription}")
                     else:
                         print(f"[ÁUDIO] {user_jid}: Erro na transcrição")
+                        logger.error("Falha na transcrição do áudio")
                 else:
                     print(f"[ÁUDIO] {user_jid}: Erro ao obter áudio")
+                    logger.error("Falha ao obter base64 do áudio")
             else:
                 print(f"[ÁUDIO] {user_jid}: ID da mensagem não encontrado")
+                logger.error("ID da mensagem não encontrado")
                 
         else:
             logger.info(f"Mensagem ignorada do tipo: {message_type}")

@@ -1,5 +1,4 @@
 services:
-  # Redis (cache)
   redis:
     image: redis:7-alpine
     container_name: evolution_redis
@@ -9,7 +8,6 @@ services:
     networks:
       - 911-network
 
-  # PostgreSQL (database)
   postgres:
     image: postgres:15-alpine
     container_name: evolution_postgres
@@ -25,7 +23,6 @@ services:
     networks:
       - 911-network
 
-  # Evolution API
   evolution-api:
     container_name: evolution_api
     image: atendai/evolution-api:v2.2.0
