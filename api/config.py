@@ -139,8 +139,7 @@ class DatabaseClient:
             
             print("✅ Banco de dados inicializado com sucesso!")
             print("📋 Tabelas criadas:")
-            print("   - emergency")
-            print("   - ticket")
+            print("   - ocorrencias")
             print("🔧 Funções e triggers criados para atualização automática de timestamps")
             
         except Exception as e:
@@ -164,7 +163,7 @@ class DatabaseClient:
             return False
     
     async def check_tables_exist(self):
-        """Verifica se as tabelas emergency e ticket existem"""
+        """Verifica se a tabela ocorrencias existe"""
         try:
             await self.connect()
             async with self.get_connection() as conn:
@@ -172,26 +171,18 @@ class DatabaseClient:
                     SELECT table_name 
                     FROM information_schema.tables 
                     WHERE table_schema = 'public' 
-                    AND table_name IN ('emergency', 'ticket')
+                    AND table_name = 'ocorrencias'
                 """)
                 
-                existing_tables = [row['table_name'] for row in result]
-                
-                if 'emergency' in existing_tables and 'ticket' in existing_tables:
-                    print("✅ Tabelas 'emergency' e 'ticket' existem no banco de dados")
+                if result:
+                    print("✅ Tabela 'ocorrencias' existe no banco de dados")
                     return True
                 else:
-                    missing_tables = []
-                    if 'emergency' not in existing_tables:
-                        missing_tables.append('emergency')
-                    if 'ticket' not in existing_tables:
-                        missing_tables.append('ticket')
-                    
-                    print(f"❌ Tabelas não encontradas: {', '.join(missing_tables)}")
+                    print("❌ Tabela 'ocorrencias' não encontrada")
                     return False
                     
         except Exception as e:
-            print(f"❌ Erro ao verificar tabelas: {str(e)}")
+            print(f"❌ Erro ao verificar tabela: {str(e)}")
             return False
 
 

@@ -42,7 +42,7 @@ async def main():
         
         if tables_created:
             print("\n🎉 Banco de dados configurado com sucesso!")
-            print("Você pode agora usar os serviços de Emergency e Ticket.")
+            print("Você pode agora usar o serviço de Ocorrências.")
         else:
             print("\n❌ Erro ao criar as tabelas.")
             sys.exit(1)

@@ -1,24 +1,5 @@
--- Criar tipos ENUM para a tabela emergency
-CREATE TYPE emergency_level AS ENUM ('CRÍTICO', 'ALTO', 'MÉDIO', 'BAIXO');
-CREATE TYPE emergency_status AS ENUM ('ATIVO', 'EM_ANDAMENTO', 'RESOLVIDO', 'FINALIZADO');
-
--- Tabela emergency
-CREATE TABLE IF NOT EXISTS emergency (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    level emergency_level NOT NULL,
-    status emergency_status NOT NULL DEFAULT 'ATIVO',
-    responsible VARCHAR(255) NOT NULL,
-    location VARCHAR(255) NOT NULL,
-    victim VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    reporter VARCHAR(255) NOT NULL
-);
-
--- Tabela ticket (baseada na interface BackendEmergency)
-CREATE TABLE IF NOT EXISTS ticket (
+-- Tabela ocorrencias (substitui emergency e ticket)
+CREATE TABLE IF NOT EXISTS ocorrencias (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     success BOOLEAN NOT NULL DEFAULT true,
     emergency_type TEXT[] NOT NULL,
@@ -34,14 +15,11 @@ CREATE TABLE IF NOT EXISTS ticket (
 );
 
 -- Índices para melhorar performance
-CREATE INDEX IF NOT EXISTS idx_emergency_status ON emergency(status);
-CREATE INDEX IF NOT EXISTS idx_emergency_level ON emergency(level);
-CREATE INDEX IF NOT EXISTS idx_emergency_created_at ON emergency(created_at);
-CREATE INDEX IF NOT EXISTS idx_emergency_location ON emergency(location);
-
-CREATE INDEX IF NOT EXISTS idx_ticket_urgency_level ON ticket(urgency_level);
-CREATE INDEX IF NOT EXISTS idx_ticket_timestamp ON ticket(timestamp);
-CREATE INDEX IF NOT EXISTS idx_ticket_emergency_type ON ticket USING GIN(emergency_type);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_urgency_level ON ocorrencias(urgency_level);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_timestamp ON ocorrencias(timestamp);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_emergency_type ON ocorrencias USING GIN(emergency_type);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_location ON ocorrencias(location);
+CREATE INDEX IF NOT EXISTS idx_ocorrencias_created_at ON ocorrencias(created_at);
 
 -- Trigger para atualizar updated_at automaticamente
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -52,10 +30,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_emergency_updated_at 
-    BEFORE UPDATE ON emergency 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_ticket_updated_at 
-    BEFORE UPDATE ON ticket 
+CREATE TRIGGER update_ocorrencias_updated_at 
+    BEFORE UPDATE ON ocorrencias 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

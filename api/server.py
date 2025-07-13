@@ -13,7 +13,7 @@ from openai import OpenAI
 import io
 
 from .config import APIConfig, db_client
-from .entities_service import emergency_service, ticket_service, backend_to_emergency
+from .ocorrencias_service import ocorrencia_service
 from Crypto.Cipher import AES
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
@@ -47,11 +47,8 @@ app.add_middleware(
 class RelatoRequest(BaseModel):
     relato: str
 
-# Modelos Pydantic para validação das rotas de emergência
-class EmergencyStatusUpdate(BaseModel):
-    status: str
-
-class BackendEmergencyData(BaseModel):
+# Modelos Pydantic para validação das rotas de ocorrências
+class OcorrenciaData(BaseModel):
     success: bool = True
     emergency_type: List[str]
     urgency_level: int
@@ -389,14 +386,34 @@ async def process_message_event(data: Dict[str, Any]):
             
             message_result = f"Olá, {contact_name}, recebemos sua mensagem e estamos encaminhando para o atendimento do {agencias_texto}, em breve um atendente irá entrar em contato com você."
             
-            # Chamar send_message_endpoint passando os dados de classificação
-            await send_message_with_classification(
-                phone_number=contact_number,
-                message=message_result,
-                original_message=parsed_message,
-                classification_data=classificacao,
-                contact_name=contact_name
-            )
+            # Preparar dados para salvar no banco
+            backend_data = {
+                "success": True,
+                "emergency_type": classificacao["emergency_classification"],
+                "urgency_level": classificacao["nivel_urgencia"],
+                "situation": parsed_message,
+                "confidence_score": 0.9,  # Pode ajustar baseado na classificação
+                "location": "Não informado",
+                "victim": None,
+                "reporter": contact_number,
+                "timestamp": datetime.now().isoformat()
+            }
+        
+            # Salvar ocorrência no banco de dados
+            try:
+                saved_data = await ocorrencia_service.create_ocorrencia(backend_data)
+                logger.info(f"Ocorrência salva no banco - ID: {saved_data['id']}")
+            except Exception as db_error:
+                logger.error(f"Erro ao salvar no banco de dados: {db_error}")
+                # Continuar mesmo se houver erro no banco
+            
+            # Enviar mensagem de resposta
+            success = await evolution_client.send_message(contact_number, message_result)
+            
+            if success:
+                logger.info(f"Mensagem de resposta enviada com sucesso para {contact_number}")
+            else:
+                logger.error(f"Falha ao enviar mensagem de resposta para {contact_number}")
 
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {e}")
@@ -465,7 +482,6 @@ def classificar_emergencia(relato: str):
         "timestamp": datetime.now().isoformat()
     }
 
-# === ROTAS ORIGINAIS ===
 
 @app.post("/classify")
 async def classify_emergency_report(request: RelatoRequest):
@@ -490,138 +506,6 @@ async def classify_emergency_report(request: RelatoRequest):
             "mensagem": str(e),
             "relato": request.relato if hasattr(request, 'relato') else "Não disponível"
         })
-
-# === ROTAS DE EMERGÊNCIA (COMPATÍVEIS COM FRONTEND) ===
-
-@app.get("/api/emergencies")
-async def get_emergencies(
-    status: Optional[str] = Query(None, description="Filtrar por status"),
-    level: Optional[str] = Query(None, description="Filtrar por nível"),
-    responsible: Optional[str] = Query(None, description="Filtrar por responsável"),
-    location: Optional[str] = Query(None, description="Filtrar por localização")
-):
-    """
-    Endpoint compatível com EmergencyService.getEmergencies()
-    GET /api/emergencies?status=ATIVO&level=CRÍTICO
-    """
-    try:
-        filters = {}
-        if status:
-            filters['status'] = status
-        if level:
-            filters['level'] = level
-        if responsible:
-            filters['responsible'] = responsible
-        if location:
-            filters['location'] = location
-        
-        emergencies = await emergency_service.get_emergencies(filters if filters else None)
-        return emergencies
-    except Exception as e:
-        # Em caso de erro, retornar dados mock para desenvolvimento
-        return emergency_service.get_mock_emergencies()
-
-@app.patch("/api/emergencies/{emergency_id}")
-async def update_emergency_status(emergency_id: str, update_data: EmergencyStatusUpdate):
-    """
-    Endpoint compatível com EmergencyService.updateEmergencyStatus()
-    PATCH /api/emergencies/{id}
-    """
-    try:
-        emergency = await emergency_service.update_emergency_status(emergency_id, update_data.status)
-        if not emergency:
-            raise HTTPException(status_code=404, detail="Emergência não encontrada")
-        return emergency
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/emergencies/{emergency_id}")
-async def get_emergency_by_id(emergency_id: str):
-    """
-    Buscar emergência por ID
-    GET /api/emergencies/{id}
-    """
-    try:
-        emergency = await emergency_service.get_emergency_by_id(emergency_id)
-        if not emergency:
-            raise HTTPException(status_code=404, detail="Emergência não encontrada")
-        return emergency
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/emergencies")
-async def create_emergency(emergency_data: dict):
-    """
-    Criar nova emergência
-    POST /api/emergencies
-    """
-    try:
-        emergency = await emergency_service.create_emergency(emergency_data)
-        return emergency
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/emergencies/from-backend")
-async def create_emergency_from_backend(backend_data: BackendEmergencyData):
-    """
-    Criar emergência a partir de dados BackendEmergency
-    POST /api/emergencies/from-backend
-    """
-    try:
-        emergency = await emergency_service.create_emergency_from_backend(backend_data.dict())
-        return emergency
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# === ROTAS DE TICKET ===
-
-@app.get("/api/tickets")
-async def get_tickets(
-    urgency_level: Optional[int] = Query(None, description="Filtrar por nível de urgência"),
-    emergency_type: Optional[str] = Query(None, description="Filtrar por tipo de emergência"),
-    location: Optional[str] = Query(None, description="Filtrar por localização")
-):
-    """
-    Listar tickets
-    GET /api/tickets?urgency_level=5&emergency_type=bombeiros
-    """
-    try:
-        filters = {}
-        if urgency_level:
-            filters['urgency_level'] = urgency_level
-        if emergency_type:
-            filters['emergency_type'] = emergency_type
-        if location:
-            filters['location'] = location
-        
-        tickets = await ticket_service.get_all_tickets(filters if filters else None)
-        return tickets
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/tickets")
-async def create_ticket(ticket_data: BackendEmergencyData):
-    """
-    Criar novo ticket
-    POST /api/tickets
-    """
-    try:
-        ticket = await ticket_service.create_ticket(ticket_data.dict())
-        return ticket
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/tickets/with-emergency")
-async def create_ticket_with_emergency(backend_data: BackendEmergencyData):
-    """
-    Criar ticket e emergência simultaneamente
-    POST /api/tickets/with-emergency
-    """
-    try:
-        result = await ticket_service.create_ticket_and_emergency(backend_data.dict())
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")
@@ -690,12 +574,10 @@ async def send_message_endpoint(request: dict):
             "timestamp": datetime.now().isoformat()
         }
         
-        # Salvar ticket e emergência no banco de dados
-        saved_to_db = False
+        # Salvar ocorrência no banco de dados
         try:
-            saved_data = await ticket_service.create_ticket_and_emergency(backend_data)
-            logger.info(f"Dados salvos no banco - Ticket ID: {saved_data['ticket']['id']}, Emergency ID: {saved_data['emergency']['id']}")
-            saved_to_db = True
+            saved_data = await ocorrencia_service.create_ocorrencia(backend_data)
+            logger.info(f"Ocorrência salva no banco - ID: {saved_data['id']}")
         except Exception as db_error:
             logger.error(f"Erro ao salvar no banco de dados: {db_error}")
             # Continuar mesmo se houver erro no banco
@@ -708,7 +590,7 @@ async def send_message_endpoint(request: dict):
             "message": "Mensagem enviada com sucesso" if success else "Falha ao enviar mensagem",
             "phone_number": phone_number,
             "classification": classification_data,
-            "saved_to_database": saved_to_db
+            "saved_to_database": saved_data if saved_data else False
         }
         
     except Exception as e:
@@ -725,8 +607,19 @@ async def root():
             "webhook": "/webhook",
             "classify": "/classify",
             "health": "/health",
-            "emergencies": "/api/emergencies",
-            "tickets": "/api/tickets",
+            "ocorrencias": "/api/ocorrencias",
             "send-message": "/send-message"
         }
-    } 
+    }
+
+
+# Rota para listar ocorrências
+@app.get("/api/ocorrencias")
+async def get_ocorrencias():
+    """Lista todas as ocorrências"""
+    try:
+        ocorrencias = await ocorrencia_service.get_all_ocorrencias()
+        return {"ocorrencias": ocorrencias, "total": len(ocorrencias)}
+    except Exception as e:
+        logger.error(f"Erro ao listar ocorrências: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) 
