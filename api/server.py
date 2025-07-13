@@ -2,17 +2,19 @@ import asyncio
 import base64
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from urllib.parse import urljoin
 from datetime import datetime
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import httpx
 import openai
 
-from .config import APIConfig
+from .config import APIConfig, db_client
+from .entities_service import emergency_service, ticket_service, backend_to_emergency
 # Adicionar imports dos classificadores
 from agentes.emergency_classifier import EmergencyClassifierAgent
 from agentes.urgency_classifier import UrgencyClassifier
@@ -29,9 +31,33 @@ openai.api_key = APIConfig.OPENAI_API_KEY
 
 app = FastAPI(title="911 Server", version="1.0.0")
 
+# Configurar CORS para permitir conexões do frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Em produção, especifique as origens permitidas
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Classe para receber o relato
 class RelatoRequest(BaseModel):
     relato: str
+
+# Modelos Pydantic para validação das rotas de emergência
+class EmergencyStatusUpdate(BaseModel):
+    status: str
+
+class BackendEmergencyData(BaseModel):
+    success: bool = True
+    emergency_type: List[str]
+    urgency_level: int
+    situation: str
+    confidence_score: float
+    location: Optional[str] = None
+    victim: Optional[str] = None
+    reporter: Optional[str] = None
+    timestamp: Optional[str] = None
 
 # Instanciar classificadores
 emergency_classifier = EmergencyClassifierAgent()
@@ -92,6 +118,16 @@ async def transcribe_audio(base64_audio: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Erro na transcrição: {e}")
         return None
+
+@app.on_event("startup")
+async def startup_event():
+    """Conectar ao banco de dados na inicialização"""
+    await db_client.connect()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Desconectar do banco de dados no encerramento"""
+    await db_client.disconnect()
 
 @app.post("/webhook")
 async def webhook_handler(request: Request):
@@ -180,6 +216,8 @@ def classificar_emergencia(relato: str):
         "timestamp": datetime.now().isoformat()
     }
 
+# === ROTAS ORIGINAIS ===
+
 @app.post("/classify")
 async def classify_emergency_report(request: RelatoRequest):
     """
@@ -204,10 +242,168 @@ async def classify_emergency_report(request: RelatoRequest):
             "relato": request.relato if hasattr(request, 'relato') else "Não disponível"
         })
 
+# === ROTAS DE EMERGÊNCIA (COMPATÍVEIS COM FRONTEND) ===
+
+@app.get("/api/emergencies")
+async def get_emergencies(
+    status: Optional[str] = Query(None, description="Filtrar por status"),
+    level: Optional[str] = Query(None, description="Filtrar por nível"),
+    responsible: Optional[str] = Query(None, description="Filtrar por responsável"),
+    location: Optional[str] = Query(None, description="Filtrar por localização")
+):
+    """
+    Endpoint compatível com EmergencyService.getEmergencies()
+    GET /api/emergencies?status=ATIVO&level=CRÍTICO
+    """
+    try:
+        filters = {}
+        if status:
+            filters['status'] = status
+        if level:
+            filters['level'] = level
+        if responsible:
+            filters['responsible'] = responsible
+        if location:
+            filters['location'] = location
+        
+        emergencies = await emergency_service.get_emergencies(filters if filters else None)
+        return emergencies
+    except Exception as e:
+        # Em caso de erro, retornar dados mock para desenvolvimento
+        return emergency_service.get_mock_emergencies()
+
+@app.patch("/api/emergencies/{emergency_id}")
+async def update_emergency_status(emergency_id: str, update_data: EmergencyStatusUpdate):
+    """
+    Endpoint compatível com EmergencyService.updateEmergencyStatus()
+    PATCH /api/emergencies/{id}
+    """
+    try:
+        emergency = await emergency_service.update_emergency_status(emergency_id, update_data.status)
+        if not emergency:
+            raise HTTPException(status_code=404, detail="Emergência não encontrada")
+        return emergency
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/emergencies/{emergency_id}")
+async def get_emergency_by_id(emergency_id: str):
+    """
+    Buscar emergência por ID
+    GET /api/emergencies/{id}
+    """
+    try:
+        emergency = await emergency_service.get_emergency_by_id(emergency_id)
+        if not emergency:
+            raise HTTPException(status_code=404, detail="Emergência não encontrada")
+        return emergency
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/emergencies")
+async def create_emergency(emergency_data: dict):
+    """
+    Criar nova emergência
+    POST /api/emergencies
+    """
+    try:
+        emergency = await emergency_service.create_emergency(emergency_data)
+        return emergency
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/emergencies/from-backend")
+async def create_emergency_from_backend(backend_data: BackendEmergencyData):
+    """
+    Criar emergência a partir de dados BackendEmergency
+    POST /api/emergencies/from-backend
+    """
+    try:
+        emergency = await emergency_service.create_emergency_from_backend(backend_data.dict())
+        return emergency
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# === ROTAS DE TICKET ===
+
+@app.get("/api/tickets")
+async def get_tickets(
+    urgency_level: Optional[int] = Query(None, description="Filtrar por nível de urgência"),
+    emergency_type: Optional[str] = Query(None, description="Filtrar por tipo de emergência"),
+    location: Optional[str] = Query(None, description="Filtrar por localização")
+):
+    """
+    Listar tickets
+    GET /api/tickets?urgency_level=5&emergency_type=bombeiros
+    """
+    try:
+        filters = {}
+        if urgency_level:
+            filters['urgency_level'] = urgency_level
+        if emergency_type:
+            filters['emergency_type'] = emergency_type
+        if location:
+            filters['location'] = location
+        
+        tickets = await ticket_service.get_all_tickets(filters if filters else None)
+        return tickets
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tickets")
+async def create_ticket(ticket_data: BackendEmergencyData):
+    """
+    Criar novo ticket
+    POST /api/tickets
+    """
+    try:
+        ticket = await ticket_service.create_ticket(ticket_data.dict())
+        return ticket
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tickets/with-emergency")
+async def create_ticket_with_emergency(backend_data: BackendEmergencyData):
+    """
+    Criar ticket e emergência simultaneamente
+    POST /api/tickets/with-emergency
+    """
+    try:
+        result = await ticket_service.create_ticket_and_emergency(backend_data.dict())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# === ROTAS DE UTILITÁRIOS ===
+
+@app.get("/api/mock/emergencies")
+async def get_mock_emergencies():
+    """
+    Retornar dados mock para desenvolvimento
+    GET /api/mock/emergencies
+    """
+    return emergency_service.get_mock_emergencies()
+
 @app.get("/health")
 async def health_check():
     """Endpoint de verificação de saúde"""
-    return {"status": "healthy", "service": "911-server"}
+    try:
+        # Testar conexão com banco
+        connection_ok = await db_client.test_connection()
+        
+        return {
+            "status": "healthy" if connection_ok else "unhealthy",
+            "service": "911-server",
+            "database": "connected" if connection_ok else "disconnected",
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "911-server",
+            "error": str(e),
+            "version": "1.0.0"
+        }
 
 @app.get("/")
 async def root():
@@ -218,6 +414,9 @@ async def root():
         "endpoints": {
             "webhook": "/webhook",
             "classify": "/classify",
-            "health": "/health"
+            "health": "/health",
+            "emergencies": "/api/emergencies",
+            "tickets": "/api/tickets",
+            "mock_data": "/api/mock/emergencies"
         }
     } 
