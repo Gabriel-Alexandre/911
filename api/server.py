@@ -123,7 +123,8 @@ async def process_message_event(data: Dict[str, Any]):
         if message_type == "conversation":
             # Mensagem de texto
             content = message.get("conversation", "")
-            print(f"[TEXTO] {user_jid}: {content}")
+            classificacao = classificar_emergencia(content)
+            print(f"Classificação: {classificacao}")            
             
         elif message_type == "audioMessage":
             # Mensagem de áudio
