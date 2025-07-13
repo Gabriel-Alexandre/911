@@ -43,7 +43,7 @@ services:
     build: .
     container_name: server_911
     ports:
-      - "8001:8000"
+      - "8000:8000"
     environment:
       - EV_URL=http://evolution_api:8080
       - EV_API_KEY=${EV_API_KEY}

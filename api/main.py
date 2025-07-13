@@ -18,7 +18,7 @@ def main():
     print("=" * 50)
     
     uvicorn.run(
-        "api.webhook_server:app",
+        "api.server:app",
         host=config["host"],
         port=config["port"],
         reload=config["reload"],
