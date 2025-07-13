@@ -93,6 +93,46 @@ class EvolutionAPIClient:
         except Exception as e:
             logger.error(f"Erro ao obter base64 da mensagem: {e}")
             return None
+    
+    async def send_message(self, phone_number: str, message: str) -> bool:
+        """
+        Envia mensagem para um número de telefone
+        
+        Args:
+            phone_number: Número do telefone (ex: 5511999999999)
+            message: Texto da mensagem
+            
+        Returns:
+            bool: True se enviado com sucesso, False caso contrário
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                url = urljoin(self.base_url, f"/chat/sendText/{self.instance}")
+                
+                # Formatar número do telefone
+                if not phone_number.endswith("@s.whatsapp.net"):
+                    phone_number = f"{phone_number}@s.whatsapp.net"
+                
+                payload = {
+                    "number": phone_number,
+                    "text": message
+                }
+                
+                logger.info(f"Enviando mensagem para {phone_number}: {message}")
+                
+                response = await client.post(url, json=payload, headers=self.headers)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    logger.info(f"Mensagem enviada com sucesso: {data}")
+                    return True
+                else:
+                    logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Erro ao enviar mensagem: {e}")
+            return False
 
 # Instanciar cliente da Evolution API
 evolution_client = EvolutionAPIClient(
@@ -100,6 +140,44 @@ evolution_client = EvolutionAPIClient(
     APIConfig.EV_API_KEY, 
     APIConfig.EV_INSTANCE
 )
+
+def formatar_agencias(agencias: list) -> str:
+    """
+    Formata lista de agências de forma gramatical em português
+    
+    Args:
+        agencias: Lista de strings com nomes das agências
+        
+    Returns:
+        String formatada gramaticalmente
+    """
+    if not agencias:
+        return ""
+    
+    if len(agencias) == 1:
+        return agencias[0]
+    elif len(agencias) == 2:
+        return f"{agencias[0]} e {agencias[1]}"
+    else:
+        # Para 3 ou mais: "SAMU, Polícia e Bombeiros"
+        return ", ".join(agencias[:-1]) + f" e {agencias[-1]}"
+
+async def enviar_mensagem_whatsapp(phone_number: str, message: str) -> bool:
+    """
+    Função externa para enviar mensagens via WhatsApp
+    
+    Args:
+        phone_number: Número do telefone (ex: 5511999999999)
+        message: Texto da mensagem
+        
+    Returns:
+        bool: True se enviado com sucesso, False caso contrário
+    """
+    try:
+        return await evolution_client.send_message(phone_number, message)
+    except Exception as e:
+        logger.error(f"Erro na função enviar_mensagem_whatsapp: {e}")
+        return False
 
 async def transcribe_audio(base64_audio: str) -> Optional[str]:
     """Transcreve áudio usando OpenAI Whisper"""
@@ -179,19 +257,24 @@ async def process_message_event(data: Dict[str, Any]):
         
         parsed_message = await parse_message(data)
         
-        print(f"Relato: {parsed_message}")
         
         if parsed_message:
             classificacao = classificar_emergencia(parsed_message)
+            print(f"Relato: {parsed_message} foi classificado como {classificacao}")
+
+            agencias = classificacao["emergency_classification"] 
             
-            agencias = classificacao["emergency_type"]
-            
-            # Fazer join da lista de agências
-            agencias_texto = ", ".join(agencias) if isinstance(agencias, list) else agencias
+            agencias_texto = formatar_agencias(agencias)
             
             message_result = f"Olá, {contact_name}, recebemos sua mensagem e estamos encaminhando para o atendimento do {agencias_texto}, em breve um atendente irá entrar em contato com você."
             
-            print(f"Mensagem: {message_result}")
+            # Enviar mensagem de resposta
+            success = await evolution_client.send_message(contact_number, message_result)
+            
+            if success:
+                logger.info(f"Mensagem de resposta enviada com sucesso para {contact_number}")
+            else:
+                logger.error(f"Falha ao enviar mensagem de resposta para {contact_number}")
 
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {e}")
@@ -393,6 +476,36 @@ async def health_check():
             "version": "1.0.0"
         }
 
+@app.post("/send-message")
+async def send_message_endpoint(request: dict):
+    """
+    Endpoint para testar envio de mensagens
+    
+    Body:
+        {
+            "phone_number": "5511999999999",
+            "message": "Teste de mensagem"
+        }
+    """
+    try:
+        phone_number = request.get("phone_number")
+        message = request.get("message")
+        
+        if not phone_number or not message:
+            raise HTTPException(status_code=400, detail="phone_number e message são obrigatórios")
+        
+        success = await enviar_mensagem_whatsapp(phone_number, message)
+        
+        return {
+            "status": "success" if success else "error",
+            "message": "Mensagem enviada com sucesso" if success else "Falha ao enviar mensagem",
+            "phone_number": phone_number
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro no endpoint send-message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def root():
     """Endpoint raiz"""
@@ -405,5 +518,6 @@ async def root():
             "health": "/health",
             "emergencies": "/api/emergencies",
             "tickets": "/api/tickets",
+            "send-message": "/send-message"
         }
     } 
