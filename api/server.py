@@ -107,7 +107,7 @@ class EvolutionAPIClient:
         """
         try:
             async with httpx.AsyncClient() as client:
-                url = urljoin(self.base_url, f"/chat/sendText/{self.instance}")
+                url = urljoin(self.base_url, f"/message/sendText/{self.instance}")
                 
                 # Formatar número do telefone
                 if not phone_number.endswith("@s.whatsapp.net"):
@@ -115,13 +115,18 @@ class EvolutionAPIClient:
                 
                 payload = {
                     "number": phone_number,
-                    "text": message
+                    "text": message,
+                    "options": {
+                        "delay": 0,
+                        "presence": "composing",
+                        "linkPreview": False
+                    }
                 }
                 
                 logger.info(f"Enviando mensagem para {phone_number}: {message}")
                 
                 response = await client.post(url, json=payload, headers=self.headers)
-                
+                print(f"Response: {response.json()}")
                 if response.status_code == 200:
                     data = response.json()
                     logger.info(f"Mensagem enviada com sucesso: {data}")
