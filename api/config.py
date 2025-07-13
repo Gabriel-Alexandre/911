@@ -43,11 +43,6 @@ class APIConfig:
     @classmethod
     def validate(cls) -> bool:
         """Valida se todas as variáveis obrigatórias estão configuradas"""
-        required_vars = [
-            cls.EV_API_KEY,
-            cls.EV_INSTANCE,
-            cls.OPENAI_API_KEY
-        ]
         
         missing_vars = []
         for var_name, var_value in [
@@ -60,7 +55,7 @@ class APIConfig:
         
         if missing_vars:
             raise ValueError(f"Variáveis de ambiente obrigatórias não configuradas: {', '.join(missing_vars)}")
-        
+                
         return True
     
     @classmethod
