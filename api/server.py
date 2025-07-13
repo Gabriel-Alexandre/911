@@ -494,12 +494,39 @@ async def send_message_endpoint(request: dict):
         if not phone_number or not message:
             raise HTTPException(status_code=400, detail="phone_number e message são obrigatórios")
         
+        # Classificar a mensagem antes de enviar
+        classificacao = classificar_emergencia(message)
+        
+        # Preparar dados para salvar no banco
+        backend_data = {
+            "success": True,
+            "emergency_type": classificacao["emergency_classification"],
+            "urgency_level": classificacao["nivel_urgencia"],
+            "situation": message,
+            "confidence_score": 0.9,  # Pode ajustar baseado na classificação
+            "location": "Não informado",
+            "victim": None,
+            "reporter": phone_number,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Salvar ticket e emergência no banco de dados
+        try:
+            saved_data = await ticket_service.create_ticket_and_emergency(backend_data)
+            logger.info(f"Dados salvos no banco - Ticket ID: {saved_data['ticket']['id']}, Emergency ID: {saved_data['emergency']['id']}")
+        except Exception as db_error:
+            logger.error(f"Erro ao salvar no banco de dados: {db_error}")
+            # Continuar mesmo se houver erro no banco
+        
+        # Enviar mensagem para WhatsApp
         success = await enviar_mensagem_whatsapp(phone_number, message)
         
         return {
             "status": "success" if success else "error",
             "message": "Mensagem enviada com sucesso" if success else "Falha ao enviar mensagem",
-            "phone_number": phone_number
+            "phone_number": phone_number,
+            "classification": classificacao,
+            "saved_to_database": "saved_data" in locals()
         }
         
     except Exception as e:
