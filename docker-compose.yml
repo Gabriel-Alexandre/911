@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # ChromaDB Vector Database
   chromadb:
     image: chromadb/chroma:latest
     container_name: chroma_vectordb
@@ -14,6 +15,55 @@ services:
       - PERSIST_DIRECTORY=/chroma/chroma
     command: ["uvicorn", "chromadb.app:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
+    networks:
+      - 911-network
+
+  # Server
+  server:
+    build: .
+    container_name: server_911
+    ports:
+      - "8001:8000"
+    environment:
+      # Evolution API
+      - EV_URL=${EV_URL:-http://localhost:8080}
+      - EV_API_KEY=${EV_API_KEY}
+      - EV_INSTANCE=${EV_INSTANCE}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:8001/webhook}
+      
+      # OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-1000}
+      
+      # ChromaDB
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - CHROMA_PERSIST_DIRECTORY=./chroma_db
+      
+      # RAG
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - CHUNK_SIZE=${CHUNK_SIZE:-1000}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
+      - MAX_CONTEXT_LENGTH=${MAX_CONTEXT_LENGTH:-2000}
+      
+      # Server
+      - HOST=0.0.0.0
+      - PORT=8000
+      - RELOAD=false
+      - LOG_LEVEL=info
+    volumes:
+      - ./chroma_db:/app/chroma_db
+    depends_on:
+      - chromadb
+    restart: unless-stopped
+    networks:
+      - 911-network
+
+networks:
+  911-network:
+    driver: bridge
 
 volumes:
   chroma_data:

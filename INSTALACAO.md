@@ -43,16 +43,9 @@ brew install pipx
 pipx install nome-da-aplicacao
 ```
 
-## 🎯 Configuração Rápida
+## 🎯 Configuração
 
-### 1. Setup Automático
-
-```bash
-# Executar script de configuração
-python3 setup_env.py
-```
-
-### 2. Configuração Manual
+### 1. Configuração Manual
 
 ```bash
 # Copiar arquivo de configuração
@@ -62,7 +55,7 @@ cp config_completo.txt .env
 nano .env
 ```
 
-### 3. Instalar Dependências
+### 2. Instalar Dependências
 
 ```bash
 # Usar ambiente virtual (recomendado)
@@ -71,7 +64,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Executar Servidor
+### 3. Executar Servidor
 
 ```bash
 # Com ambiente virtual ativado
@@ -109,8 +102,40 @@ OPENAI_API_KEY=sua_chave_openai_aqui
 - Use ambiente virtual
 - Ou adicione `--user`: `python3 -m pip install --user -r requirements.txt`
 
+## 🐳 Execução com Docker
+
+### Comandos Docker
+
+```bash
+# Iniciar serviços
+docker-compose up -d
+
+# Parar serviços
+docker-compose down
+
+# Ver logs
+docker-compose logs -f
+
+# Ver status
+docker-compose ps
+
+# Reconstruir imagem
+docker-compose build --no-cache
+
+# Limpar tudo
+docker-compose down -v
+```
+
+### Endpoints com Docker
+
+- **ChromaDB**: http://localhost:8000
+- **Server**: http://localhost:8001
+- **Health Check**: http://localhost:8001/health
+- **Webhook**: http://localhost:8001/webhook
+
 ## 📚 Recursos Adicionais
 
 - [Documentação Python](https://docs.python.org/3/)
 - [Guia pip](https://pip.pypa.io/en/stable/)
-- [Ambientes Virtuais](https://docs.python.org/3/tutorial/venv.html) 
+- [Ambientes Virtuais](https://docs.python.org/3/tutorial/venv.html)
+- [Docker Compose](https://docs.docker.com/compose/) 

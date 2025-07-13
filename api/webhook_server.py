@@ -22,7 +22,7 @@ APIConfig.validate()
 # Configurar OpenAI
 openai.api_key = APIConfig.OPENAI_API_KEY
 
-app = FastAPI(title="Evolution API Webhook Server", version="1.0.0")
+app = FastAPI(title="911 Server", version="1.0.0")
 
 class EvolutionAPIClient:
     def __init__(self, base_url: str, api_key: str, instance: str):
@@ -185,13 +185,13 @@ async def process_message_event(data: Dict[str, Any]):
 @app.get("/health")
 async def health_check():
     """Endpoint de verificação de saúde"""
-    return {"status": "healthy", "service": "on-caller"}
+    return {"status": "healthy", "service": "911-server"}
 
 @app.get("/")
 async def root():
     """Endpoint raiz"""
     return {
-        "message": "On Caller Server",
+        "message": "911 Server",
         "version": "1.0.0",
         "endpoints": {
             "webhook": "/webhook",
