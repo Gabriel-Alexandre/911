@@ -63,7 +63,8 @@ class VectorDBConfig:
                 vector_store = FAISS.load_local(
                     self.FAISS_INDEX_PATH, 
                     embeddings, 
-                    self.COLLECTION_NAME
+                    self.COLLECTION_NAME,
+                    allow_dangerous_deserialization=True
                 )
                 return vector_store
             except Exception as e:

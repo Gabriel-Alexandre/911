@@ -380,27 +380,73 @@ async def process_message_event(data: Dict[str, Any]):
         
         parsed_message = await parse_message(data)
         
-        
         if parsed_message:
             classificacao = classificar_emergencia(parsed_message)
             print(f"Relato: {parsed_message} foi classificado como {classificacao}")
 
             agencias = classificacao["emergency_classification"] 
-            
             agencias_texto = formatar_agencias(agencias)
             
             message_result = f"Olá, {contact_name}, recebemos sua mensagem e estamos encaminhando para o atendimento do {agencias_texto}, em breve um atendente irá entrar em contato com você."
             
-            # Enviar mensagem de resposta
-            success = await evolution_client.send_message(contact_number, message_result)
-            
-            if success:
-                logger.info(f"Mensagem de resposta enviada com sucesso para {contact_number}")
-            else:
-                logger.error(f"Falha ao enviar mensagem de resposta para {contact_number}")
+            # Chamar send_message_endpoint passando os dados de classificação
+            await send_message_with_classification(
+                phone_number=contact_number,
+                message=message_result,
+                original_message=parsed_message,
+                classification_data=classificacao,
+                contact_name=contact_name
+            )
 
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {e}")
+
+
+async def send_message_with_classification(
+    phone_number: str, 
+    message: str, 
+    original_message: str,
+    classification_data: dict,
+    contact_name: str = None
+):
+    """
+    Função interna para enviar mensagem com dados de classificação já processados
+    """
+    try:
+        # Preparar dados para salvar no banco usando a classificação já feita
+        backend_data = {
+            "success": True,
+            "emergency_type": classification_data["emergency_classification"],
+            "urgency_level": classification_data["nivel_urgencia"],
+            "situation": original_message,
+            "confidence_score": 0.9,  # Pode ajustar baseado na classificação
+            "location": "Não informado",
+            "victim": None,
+            "reporter": phone_number,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Salvar ticket e emergência no banco de dados
+        try:
+            saved_data = await ticket_service.create_ticket_and_emergency(backend_data)
+            logger.info(f"Dados salvos no banco - Ticket ID: {saved_data['ticket']['id']}, Emergency ID: {saved_data['emergency']['id']}")
+        except Exception as db_error:
+            logger.error(f"Erro ao salvar no banco de dados: {db_error}")
+            # Continuar mesmo se houver erro no banco
+        
+        # Enviar mensagem para WhatsApp
+        success = await evolution_client.send_message(phone_number, message)
+        
+        if success:
+            logger.info(f"Mensagem de resposta enviada com sucesso para {contact_name} ({phone_number})")
+        else:
+            logger.error(f"Falha ao enviar mensagem de resposta para {contact_name} ({phone_number})")
+            
+        return success
+        
+    except Exception as e:
+        logger.error(f"Erro ao enviar mensagem com classificação: {e}")
+        return False
 
 
 def classificar_emergencia(relato: str):
@@ -607,26 +653,37 @@ async def send_message_endpoint(request: dict):
     Body:
         {
             "phone_number": "5511999999999",
-            "message": "Teste de mensagem"
+            "message": "Teste de mensagem",
+            "classification_data": {  // Opcional - se não fornecido, será classificado
+                "emergency_classification": ["bombeiros"],
+                "nivel_urgencia": 5,
+                "status": "sucesso"
+            }
         }
     """
     try:
         phone_number = request.get("phone_number")
         message = request.get("message")
+        classification_data = request.get("classification_data")
         
         if not phone_number or not message:
             raise HTTPException(status_code=400, detail="phone_number e message são obrigatórios")
         
-        # Classificar a mensagem antes de enviar
-        classificacao = classificar_emergencia(message)
+        # Se não tem dados de classificação, classificar a mensagem
+        if not classification_data:
+            classification_data = classificar_emergencia(message)
+            original_message = message
+        else:
+            # Se tem dados de classificação, usar a mensagem como situação original
+            original_message = classification_data.get("relato", message)
         
         # Preparar dados para salvar no banco
         backend_data = {
             "success": True,
-            "emergency_type": classificacao["emergency_classification"],
-            "urgency_level": classificacao["nivel_urgencia"],
-            "situation": message,
-            "confidence_score": 0.9,  # Pode ajustar baseado na classificação
+            "emergency_type": classification_data["emergency_classification"],
+            "urgency_level": classification_data["nivel_urgencia"],
+            "situation": original_message,
+            "confidence_score": 0.9,
             "location": "Não informado",
             "victim": None,
             "reporter": phone_number,
@@ -634,9 +691,11 @@ async def send_message_endpoint(request: dict):
         }
         
         # Salvar ticket e emergência no banco de dados
+        saved_to_db = False
         try:
             saved_data = await ticket_service.create_ticket_and_emergency(backend_data)
             logger.info(f"Dados salvos no banco - Ticket ID: {saved_data['ticket']['id']}, Emergency ID: {saved_data['emergency']['id']}")
+            saved_to_db = True
         except Exception as db_error:
             logger.error(f"Erro ao salvar no banco de dados: {db_error}")
             # Continuar mesmo se houver erro no banco
@@ -648,8 +707,8 @@ async def send_message_endpoint(request: dict):
             "status": "success" if success else "error",
             "message": "Mensagem enviada com sucesso" if success else "Falha ao enviar mensagem",
             "phone_number": phone_number,
-            "classification": classificacao,
-            "saved_to_database": "saved_data" in locals()
+            "classification": classification_data,
+            "saved_to_database": saved_to_db
         }
         
     except Exception as e:
