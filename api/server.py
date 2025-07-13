@@ -27,6 +27,7 @@ APIConfig.validate()
 # Configurar OpenAI
 openai.api_key = APIConfig.OPENAI_API_KEY
 
+
 app = FastAPI(title="911 Server", version="1.0.0")
 
 # Classe para receber o relato
@@ -93,6 +94,29 @@ async def transcribe_audio(base64_audio: str) -> Optional[str]:
         logger.error(f"Erro na transcrição: {e}")
         return None
 
+async def parse_message(data: Dict[str, Any]) -> str:
+    """
+    Extrai o texto da mensagem
+    """
+    key = data.get("key", {})
+    message = data.get("message", {})
+    message_type = data.get("messageType", "unknown")
+                
+    if message_type == "conversation":        
+        return message.get("conversation")          
+            
+    elif message_type == "audioMessage":
+        message_id = key.get("id")
+        
+        if message_id:
+            base64_audio = await evolution_client.get_base64_from_media_message(message_id)
+            
+            if base64_audio:
+                transcription = await transcribe_audio(base64_audio)
+                
+                if transcription:
+                    return transcription
+
 @app.post("/webhook")
 async def webhook_handler(request: Request):
     """Endpoint principal do webhook que recebe eventos da Evolution API"""
@@ -113,54 +137,26 @@ async def webhook_handler(request: Request):
 async def process_message_event(data: Dict[str, Any]):
     """Processa eventos de mensagens"""
     try:
-        # Extrair informações da mensagem
-        key = data.get("key", {})
-        message = data.get("message", {})
+        contact_name = data.get("pushName")
+        user_jid = data.get("key", {}).get("remoteJid", "unknown")
+        contact_number = user_jid.split("@")[0]
         
-        user_jid = key.get("remoteJid", "unknown")
-        message_type = data.get("messageType", "unknown")  # messageType está no nível raiz do data
-                
-        if message_type == "conversation":
-            # Mensagem de texto
-            content = message.get("conversation", "")
-            classificacao = classificar_emergencia(content)
-            print(f"Classificação: {classificacao}")            
+        parsed_message = await parse_message(data)
+        
+        print(f"Relato: {parsed_message}")
+        
+        if parsed_message:
+            classificacao = classificar_emergencia(parsed_message)
             
-        elif message_type == "audioMessage":
-            # Mensagem de áudio
-            logger.info(f"Processando mensagem de áudio de {user_jid}")
-            audio_message = message.get("audioMessage", {})
-            message_id = key.get("id")
+            agencias = classificacao["emergency_type"]
             
-            logger.info(f"ID da mensagem: {message_id}")
-            logger.info(f"Dados do áudio: {json.dumps(audio_message, indent=2)}")
+            # Fazer join da lista de agências
+            agencias_texto = ", ".join(agencias) if isinstance(agencias, list) else agencias
             
-            if message_id:
-                # Obter base64 do áudio
-                logger.info(f"Obtendo base64 da mensagem {message_id}")
-                base64_audio = await evolution_client.get_base64_from_media_message(message_id)
-                
-                if base64_audio:
-                    logger.info(f"Base64 obtido com sucesso, tamanho: {len(base64_audio)}")
-                    # Transcrever áudio
-                    transcription = await transcribe_audio(base64_audio)
-                    
-                    if transcription:
-                        print(f"[ÁUDIO] {user_jid}: {transcription}")
-                        logger.info(f"Transcrição realizada: {transcription}")
-                    else:
-                        print(f"[ÁUDIO] {user_jid}: Erro na transcrição")
-                        logger.error("Falha na transcrição do áudio")
-                else:
-                    print(f"[ÁUDIO] {user_jid}: Erro ao obter áudio")
-                    logger.error("Falha ao obter base64 do áudio")
-            else:
-                print(f"[ÁUDIO] {user_jid}: ID da mensagem não encontrado")
-                logger.error("ID da mensagem não encontrado")
-                
-        else:
-            logger.info(f"Mensagem ignorada do tipo: {message_type}")
+            message_result = f"Olá, {contact_name}, recebemos sua mensagem e estamos encaminhando para o atendimento do {agencias_texto}, em breve um atendente irá entrar em contato com você."
             
+            print(f"Mensagem: {message_result}")
+
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {e}")
 
