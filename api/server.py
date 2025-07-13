@@ -74,25 +74,7 @@ class EvolutionAPIClient:
             "apikey": api_key
         }
     
-    async def get_base64_from_media_message(self, message_id: str) -> Optional[str]:
-        """Obtém o base64 de uma mensagem de mídia"""
-        try:
-            async with httpx.AsyncClient() as client:
-                url = urljoin(self.base_url, f"/chat/getBase64FromMediaMessage/{self.instance}")
-                payload = {"messageId": message_id}
-                
-                response = await client.post(url, json=payload, headers=self.headers)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get("base64")
-                else:
-                    logger.error(f"Erro ao obter base64: {response.status_code} - {response.text}")
-                    return None
-                    
-        except Exception as e:
-            logger.error(f"Erro ao obter base64 da mensagem: {e}")
-            return None
+
     
     async def send_message(self, phone_number: str, message: str) -> bool:
         """
@@ -184,8 +166,45 @@ async def enviar_mensagem_whatsapp(phone_number: str, message: str) -> bool:
         logger.error(f"Erro na função enviar_mensagem_whatsapp: {e}")
         return False
 
+async def download_audio_from_url(url: str) -> Optional[bytes]:
+    """Faz download do áudio a partir da URL"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                return response.content
+            else:
+                logger.error(f"Erro ao fazer download do áudio: {response.status_code}")
+                return None
+    except Exception as e:
+        logger.error(f"Erro ao fazer download do áudio: {e}")
+        return None
+
+async def transcribe_audio_from_url(audio_url: str) -> Optional[str]:
+    """Transcreve áudio a partir da URL usando OpenAI Whisper"""
+    try:
+        # Fazer download do áudio
+        audio_data = await download_audio_from_url(audio_url)
+        
+        if not audio_data:
+            logger.error("Falha ao fazer download do áudio")
+            return None
+        
+        # Enviar para OpenAI Whisper
+        response = openai.Audio.transcribe(
+            model="whisper-1",
+            file=("audio.ogg", audio_data, "audio/ogg"),
+            language="pt"
+        )
+        
+        return response.text
+        
+    except Exception as e:
+        logger.error(f"Erro na transcrição: {e}")
+        return None
+
 async def transcribe_audio(base64_audio: str) -> Optional[str]:
-    """Transcreve áudio usando OpenAI Whisper"""
+    """Transcreve áudio usando OpenAI Whisper (mantido para compatibilidade)"""
     try:
         # Decodificar base64
         audio_data = base64.b64decode(base64_audio)
@@ -225,16 +244,26 @@ async def parse_message(data: Dict[str, Any]) -> str:
         return message.get("conversation")          
             
     elif message_type == "audioMessage":
-        message_id = key.get("id")
+        # Extrair URL do áudio diretamente do payload
+        audio_message = message.get("audioMessage", {})
+        audio_url = audio_message.get("url")
         
-        if message_id:
-            base64_audio = await evolution_client.get_base64_from_media_message(message_id)
+        logger.info(f"Processando mensagem de áudio")
+        logger.info(f"Dados do áudio: {json.dumps(audio_message, indent=2)}")
+        
+        if audio_url:
+            logger.info(f"URL do áudio encontrada: {audio_url}")
+            transcription = await transcribe_audio_from_url(audio_url)
             
-            if base64_audio:
-                transcription = await transcribe_audio(base64_audio)
-                
-                if transcription:
-                    return transcription
+            if transcription:
+                logger.info(f"Transcrição realizada: {transcription}")
+                return transcription
+            else:
+                logger.error("Falha na transcrição do áudio")
+                return None
+        else:
+            logger.error("URL do áudio não encontrada no payload")
+            return None
 
 @app.post("/webhook")
 async def webhook_handler(request: Request):
