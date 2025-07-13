@@ -163,6 +163,23 @@ async def process_message_event(data: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Erro ao processar mensagem: {e}")
 
+
+def classificar_emergencia(relato: str):
+    # Passo 1: Classificar emergência (tipos de serviço)
+    emergency_result = emergency_classifier.classify_emergency(relato)
+        
+    # Passo 2: Classificar urgência usando o resultado anterior
+     urgency_result = urgency_classifier.classify_emergency(relato, emergency_result)
+        
+    # Passo 3: Retornar resultado completo em formato de dicionário
+    return {
+        "relato": relato,
+        "emergency_classification": emergency_result["tipos_emergencia"],
+        "nivel_urgencia": urgency_result.nivel_urgencia,
+        "status": "sucesso",
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.post("/classify")
 async def classify_emergency_report(request: RelatoRequest):
     """
@@ -177,20 +194,7 @@ async def classify_emergency_report(request: RelatoRequest):
     try:
         relato = request.relato
         
-        # Passo 1: Classificar emergência (tipos de serviço)
-        emergency_result = emergency_classifier.classify_emergency(relato)
-        
-        # Passo 2: Classificar urgência usando o resultado anterior
-        urgency_result = urgency_classifier.classify_emergency(relato, emergency_result)
-        
-        # Passo 3: Retornar resultado completo em formato de dicionário
-        return {
-            "relato": relato,
-            "emergency_classification": emergency_result["tipos_emergencia"],
-            "nivel_urgencia": urgency_result.nivel_urgencia,
-            "status": "sucesso",
-            "timestamp": datetime.now().isoformat()
-        }
+        return classificar_emergencia(relato)
         
     except Exception as e:
         logger.error(f"Erro na classificação: {e}")
