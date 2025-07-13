@@ -1,5 +1,5 @@
 """
-Arquivo principal para executar o servidor webhook
+Arquivo principal para executar o servidor para o modulo de on caller
 """
 
 import uvicorn
@@ -10,7 +10,7 @@ def main():
     """Função principal para executar o servidor"""
     config = APIConfig.get_server_config()
     
-    print("🚀 Iniciando servidor webhook Evolution API...")
+    print("🚀 Iniciando servidor para o on caller...")
     print(f"📍 Host: {config['host']}")
     print(f"🔌 Porta: {config['port']}")
     print(f"🔄 Reload: {config['reload']}")

@@ -5,7 +5,6 @@ import logging
 from typing import Dict, Any, Optional
 from urllib.parse import urljoin
 
-import uvicorn
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import httpx
@@ -186,13 +185,13 @@ async def process_message_event(data: Dict[str, Any]):
 @app.get("/health")
 async def health_check():
     """Endpoint de verificação de saúde"""
-    return {"status": "healthy", "service": "evolution-webhook"}
+    return {"status": "healthy", "service": "on-caller"}
 
 @app.get("/")
 async def root():
     """Endpoint raiz"""
     return {
-        "message": "Evolution API Webhook Server",
+        "message": "On Caller Server",
         "version": "1.0.0",
         "endpoints": {
             "webhook": "/webhook",
