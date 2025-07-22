@@ -26,11 +26,9 @@ async def main():
         tables_exist = await check_database_tables()
         
         if tables_exist:
-            print("ℹ️  Tabelas já existem. Deseja recriar? (s/n)")
-            response = input().lower()
-            if response != 's':
-                print("✅ Configuração concluída.")
-                return
+            print("ℹ️  Tabelas já existem. Pulando criação...")
+            print("✅ Configuração concluída.")
+            return
         
         # Inicializar o banco de dados
         print("\n3. Inicializando banco de dados...")
